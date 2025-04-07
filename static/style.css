@@ -1,89 +1,273 @@
-body {
-    font-family: Arial, sans-serif;
-    background-color: #f4f4f9;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
+/* --- Global Styles & Variables --- */
+:root {
+    --bg-color-darkest: #131314;  /* Slightly darker than AI studio */
+    --bg-color-dark: #1e1e1f;    /* Main chat bg */
+    --bg-color-medium: #28292c;  /* Sidebar bg */
+    --bg-color-light: #3c3d40;   /* Input, buttons */
+    --bg-color-hover: #4a4b4f;   /* Button hover */
+    --text-color-primary: #e1e2e6; /* Main text */
+    --text-color-secondary: #9aa0a6;/* Subtle text, placeholders */
+    --accent-color: #8ab4f8;     /* Primary buttons, highlights */
+    --accent-color-hover: #a1c2fa;
+    --accent-text-dark: #202124; /* Text on accent background */
+    --border-color: #3c3d40;
+    --border-color-light: #5f6368;
+    --error-color: #f28b82;       /* For errors */
+    --user-message-bg: #344154;   /* User message bubble */
+    --bot-message-bg: #28292c;    /* Bot message bubble */
+    --font-family: 'Roboto', sans-serif;
+    --border-radius-main: 10px;  /* Consistent border radius */
+    --border-radius-small: 6px;
+}
+
+* {
+    box-sizing: border-box;
     margin: 0;
+    padding: 0;
 }
 
-.container {
-    max-width: 500px;
-    width: 100%;
-    background: white;
-    border-radius: 10px;
-    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+html, body {
+    height: 100%; /* Ensure body takes full height */
+    overflow: hidden; /* Prevent body scrollbars */
+    font-family: var(--font-family);
+    background-color: var(--bg-color-darkest);
+    color: var(--text-color-primary);
+}
+
+/* --- Main App Layout --- */
+.app-container {
+    display: flex;
+    height: 100vh; /* Full viewport height */
+    width: 100vw;  /* Full viewport width */
+}
+
+/* --- Sidebar --- */
+.sidebar {
+    width: 260px; /* Fixed width for the sidebar */
+    flex-shrink: 0; /* Prevent sidebar from shrinking */
+    background-color: var(--bg-color-medium);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column; /* Stack top section and reset button */
     padding: 20px;
+    position: relative; /* For absolute positioning of reset button */
 }
 
+.sidebar-top {
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* Space between upload elements */
+}
+
+/* Style the label like a button */
+.sidebar .btn-upload {
+    display: block; /* Make label take full width */
+    text-align: center;
+    margin-bottom: 5px; /* Space before the confirm button */
+}
+
+/* Confirm Upload Button */
+.sidebar .btn-trigger-upload {
+    background-color: var(--bg-color-light);
+    color: var(--text-color-secondary);
+}
+.sidebar .btn-trigger-upload:hover {
+    background-color: var(--bg-color-hover);
+    color: var(--text-color-primary);
+}
+.sidebar .btn-trigger-upload:disabled {
+    background-color: #333;
+    color: #777;
+    cursor: not-allowed;
+}
+
+
+/* File info text */
+.sidebar #file-info {
+    font-size: 0.8rem;
+    color: var(--text-color-secondary);
+    margin-top: 5px;
+    word-break: break-word; /* Prevent long filenames from overflowing */
+}
+
+/* Reset Button at the Bottom */
+.sidebar .btn-reset {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    right: 20px; /* Stretch across padding */
+    width: calc(100% - 40px); /* Calculate width based on padding */
+    background-color: var(--bg-color-light);
+    color: var(--text-color-secondary);
+}
+.sidebar .btn-reset:hover {
+    background-color: var(--error-color); /* Use error color on hover for reset */
+    color: var(--accent-text-dark);
+}
+
+/* --- Main Chat Area --- */
+.chat-area {
+    flex-grow: 1; /* Take remaining horizontal space */
+    display: flex;
+    flex-direction: column; /* Stack header, chat container, input */
+    background-color: var(--bg-color-dark);
+    overflow: hidden; /* Prevent content spillover */
+}
+
+.chat-header {
+    text-align: center;
+    padding: 30px 40px 20px 40px; /* Generous padding */
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0; /* Prevent header from shrinking */
+}
+
+.chat-header h1 {
+    font-size: 2.5em;
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: #ffffff; /* Slightly brighter for title */
+}
+
+.chat-header p {
+    font-size: 1.0em;
+    color: var(--text-color-secondary);
+}
+
+/* Chat Messages Container */
 .chat-container {
-    height: 400px;
-    overflow-y: auto;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    padding: 15px;
-    margin-bottom: 15px;
+    flex-grow: 1; /* Take available vertical space */
+    overflow-y: auto; /* Enable vertical scrolling */
+    padding: 20px 40px; /* Padding for messages */
+    display: flex;
+    flex-direction: column;
+    gap: 12px; /* Space between messages */
 }
 
+/* Individual Message Styling */
 .message {
-    margin-bottom: 10px;
-    padding: 10px;
-    border-radius: 8px;
-    max-width: 80%;
+    padding: 12px 18px;
+    border-radius: var(--border-radius-main);
+    max-width: 75%; /* Limit message width */
+    line-height: 1.5;
+    word-wrap: break-word; /* Break long words */
 }
+.message strong { font-weight: 600; }
+.message em { font-style: italic; }
+.message br { margin-bottom: 5px; } /* Add space after line breaks */
+
 
 .user-message {
-    background-color: #007bff;
-    color: white;
-    margin-left: auto;
+    background-color: var(--user-message-bg);
+    color: var(--text-color-primary);
+    margin-left: auto; /* Align user messages to the right */
+    align-self: flex-end; /* Ensure alignment */
 }
 
 .bot-message {
-    background-color: #f8f9fa;
-    color: #212529;
+    background-color: var(--bot-message-bg);
+    color: var(--text-color-primary);
+    margin-right: auto; /* Align bot messages to the left */
+    align-self: flex-start; /* Ensure alignment */
 }
 
-.input-container {
+/* --- Input Section --- */
+.input-section {
     display: flex;
+    align-items: center;
+    padding: 15px 40px 25px 40px; /* Bottom padding more generous */
+    border-top: 1px solid var(--border-color);
+    background-color: var(--bg-color-dark); /* Match chat area background */
     gap: 10px;
+    flex-shrink: 0; /* Prevent input area from shrinking */
 }
 
-.input-container input {
-    flex: 1;
-    padding: 10px;
-    border: 1px solid #dee2e6;
-    border-radius: 5px;
+.chat-input {
+    flex-grow: 1;
+    padding: 12px 15px;
+    border: 1px solid var(--border-color-light);
+    background-color: var(--bg-color-light);
+    color: var(--text-color-primary);
+    border-radius: var(--border-radius-small);
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.2s ease;
 }
 
+.chat-input:focus {
+    border-color: var(--accent-color);
+}
+
+.chat-input::placeholder {
+    color: var(--text-color-secondary);
+}
+
+/* --- General Button Styles --- */
 .btn {
-    padding: 10px 15px;
+    padding: 10px 18px;
     border: none;
-    color: white;
-    border-radius: 5px;
+    border-radius: var(--border-radius-small);
     cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 500;
+    display: inline-flex; /* Use inline-flex for icon alignment */
+    align-items: center;
+    justify-content: center;
+    gap: 8px; /* Space between icon and text */
+    transition: background-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+    white-space: nowrap; /* Prevent text wrapping */
+    line-height: 1.2; /* Ensure text vertical alignment */
 }
 
+.btn i {
+    font-size: 1.1em; /* Slightly larger icons */
+}
+
+.btn:hover {
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.3);
+}
+
+/* Primary Button (Upload Label) */
 .btn-primary {
-    background-color: #007bff;
+    background-color: var(--accent-color);
+    color: var(--accent-text-dark); /* Dark text on light blue */
 }
-
 .btn-primary:hover {
-    background-color: #0056b3;
+    background-color: var(--accent-color-hover);
 }
 
-.btn-danger {
-    background-color: #dc3545;
+/* Send Button */
+.btn-send {
+    background-color: var(--bg-color-light);
+    color: var(--text-color-secondary);
+    padding: 12px; /* Make it squarer */
+    min-width: 44px; /* Ensure minimum size */
+    flex-shrink: 0; /* Prevent shrinking */
+}
+.btn-send:hover {
+    background-color: var(--bg-color-hover);
+    color: var(--text-color-primary);
+}
+.btn-send i {
+    margin: 0; /* Override gap if only icon */
+    font-size: 1.2em;
 }
 
-.btn-danger:hover {
-    background-color: #a71d2a;
+/* --- Scrollbar Styling (Optional, Webkit browsers) --- */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
 }
 
-.btn-success {
-    background-color: #28a745;
+::-webkit-scrollbar-track {
+    background: var(--bg-color-dark); /* Track color */
 }
 
-.btn-success:hover {
-    background-color: #1e7e34;
+::-webkit-scrollbar-thumb {
+    background: var(--bg-color-light); /* Scroller color */
+    border-radius: 5px;
+    border: 2px solid var(--bg-color-dark); /* Creates padding around thumb */
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--bg-color-hover);
 }
