@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: medical-chatbot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app -c gunicorn_config.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.0
+      - key: PINECONE_API_KEY
+        sync: false
+      - key: GOOGLE_GEMINI_KEY
+        sync: false 
