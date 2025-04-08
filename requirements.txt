@@ -18,3 +18,4 @@ scikit-learn==1.6.1
 scipy==1.15.2
 nltk==3.9.1
 sentencepiece==0.2.0
+gunicorn==21.2.0
