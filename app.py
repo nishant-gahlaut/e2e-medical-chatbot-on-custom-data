@@ -1,6 +1,6 @@
 import os
 import time
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, url_for
 from dotenv import load_dotenv
 from src.service import get_response
 import shutil
@@ -10,7 +10,10 @@ from pinecone import Pinecone
 
 load_dotenv()
 
-app = Flask(__name__)
+app = Flask(__name__, 
+            static_url_path='', 
+            static_folder='static',
+            template_folder='templates')
 UPLOAD_FOLDER = "uploads/"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 

@@ -4,13 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chatbot Library</title>
-    <!-- Remove Bootstrap CSS -->
-    <link rel="stylesheet" href="/static/style.css"> <!-- Your custom CSS -->
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <!-- Link Google Fonts (Roboto) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Link Font Awesome for Icons (Optional but recommended for button icons) -->
+    <!-- Link Font Awesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
 </head>
 <body>
@@ -179,8 +179,8 @@
             if (!chatContainer) return;
 
             try {
-                // Optional: Add API call if backend needs reset notification
-                // await fetch('/reset', { method: 'POST' });
+                // Call the reset API endpoint
+                await fetch('/reset', { method: 'POST' });
 
                 // Clear chat visually
                 chatContainer.innerHTML = '<div class="message bot-message">Chat reset. Upload new files or ask a question.</div>';
