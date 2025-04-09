@@ -99,10 +99,15 @@ html, body {
     width: calc(100% - 40px); /* Calculate width based on padding */
     background-color: var(--bg-color-light);
     color: var(--text-color-secondary);
+    border: 1px solid var(--border-color-light);
+    transition: all 0.2s ease;
 }
 .sidebar .btn-reset:hover {
-    background-color: var(--error-color); /* Use error color on hover for reset */
-    color: var(--accent-text-dark);
+    background-color: #5b5b7c; /* Less alarming color than error-red */
+    color: #ffffff;
+}
+.sidebar .btn-reset i {
+    margin-right: 5px;
 }
 
 /* --- Main Chat Area --- */

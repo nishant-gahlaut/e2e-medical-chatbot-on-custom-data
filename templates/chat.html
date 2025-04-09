@@ -30,7 +30,7 @@
 
             <!-- Reset Button at the Bottom -->
             <button class="btn btn-reset" onclick="resetChat()">
-                <i class="fas fa-trash-alt"></i> Reset Chat
+                <i class="fas fa-trash-alt"></i> Clear Chat
             </button>
         </aside>
 
@@ -144,7 +144,7 @@
             }
 
             // Add a visual indicator for upload start
-            addMessage(`Uploading ${fileInput.files.length} file(s)...`, false); // Use bot style for status
+            addMessage(`Processing ${fileInput.files.length} file(s)...`, false); // Show processing message
             const confirmButton = document.querySelector('.btn-trigger-upload');
             if(confirmButton) confirmButton.disabled = true; // Disable button during upload
 
@@ -156,19 +156,19 @@
 
                 if (!response.ok) {
                      const errorText = await response.text();
-                     throw new Error(`Upload failed: ${response.status} ${response.statusText}. ${errorText}`);
+                     throw new Error(`Processing failed: ${response.status} ${response.statusText}. ${errorText}`);
                 }
 
                 const data = await response.json();
-                alert(data.message || 'Files processed successfully!'); // Use alert or addMessage
-                addMessage(data.message || 'Files processed successfully!', false); // Also show in chat
+                alert(data.message || 'Files processed successfully!'); 
+                addMessage(data.message || 'Files processed successfully!', false);
                 fileInfo.textContent = 'No files selected'; // Reset file info
                 fileInput.value = ''; // Clear the file input selection
 
             } catch (error) {
-                console.error("Upload error:", error);
-                alert(`Error uploading files: ${error.message}`);
-                addMessage(`Error uploading files: ${error.message}`, false); // Show error in chat
+                console.error("Processing error:", error);
+                alert(`Error processing files: ${error.message}`);
+                addMessage(`Error processing files: ${error.message}`, false); // Show error in chat
             } finally {
                  if(confirmButton) confirmButton.disabled = false; // Re-enable button
             }
@@ -180,16 +180,20 @@
 
             try {
                 // Call the reset API endpoint
-                await fetch('/reset', { method: 'POST' });
+                const response = await fetch('/reset', { method: 'POST' });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Reset failed: ${response.status} ${response.statusText}. ${errorText}`);
+                }
 
                 // Clear chat visually
-                chatContainer.innerHTML = '<div class="message bot-message">Chat reset. Upload new files or ask a question.</div>';
-                if(fileInfo) fileInfo.textContent = 'No files selected'; // Reset file info display
-                if(fileInput) fileInput.value = ''; // Clear file input selection
+                chatContainer.innerHTML = '<div class="message bot-message">Chat history cleared. You can upload new files or ask questions about your documents.</div>';
+                
+                // Note: We no longer reset file info or file input since we're only clearing the chat
             } catch (error) {
                 console.error("Reset error:", error);
-                alert('Error resetting chat state.');
-                addMessage('Error resetting chat state.', false);
+                addMessage(`Error resetting chat: ${error.message}`, false);
             }
         }
 

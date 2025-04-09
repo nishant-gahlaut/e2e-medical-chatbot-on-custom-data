@@ -4,7 +4,7 @@ from flask import Flask, request, jsonify, render_template, url_for
 from dotenv import load_dotenv
 from src.service import get_response
 import shutil
-from src.helper import load_documents, create_chunk, create_embeddings, create_pinecone_index, create_pinecone_vector_store, load_llm, create_rag_chain
+from src.helper import load_documents, process_file_bytes, create_chunk, create_embeddings, create_pinecone_index, create_pinecone_vector_store, load_llm, create_rag_chain
 from src.prompt import system_prompt
 from pinecone import Pinecone
 
@@ -37,8 +37,8 @@ def index():
 
 @app.route('/upload', methods=['POST'])
 def upload():
-    """Handles multiple file uploads and processes them for vector storage."""
-    global _documents, _chunks, _embeddings, _vector_store, _llm
+    """Handles multiple file uploads and processes them for vector storage without permanent storage."""
+    global _documents, _chunks, _embeddings, _vector_store, _llm, _index_name
     
     if 'files' not in request.files:
         return jsonify({"error": "No files part"}), 400
@@ -48,19 +48,19 @@ def upload():
         return jsonify({"error": "No selected files"}), 400
     
     try:
-        # Save uploaded files
-        file_paths = []
+        # Process files directly without saving to permanent storage
+        all_documents = []
+        processed_files = []
+        
         for file in files:
             if file.filename:
-                file_path = os.path.join(UPLOAD_FOLDER, file.filename)
-                file.save(file_path)
-                file_paths.append(file_path)
-        
-        # Process all uploaded files
-        all_documents = []
-        for file_path in file_paths:
-            documents = load_documents(file_path)
-            all_documents.extend(documents)
+                # Read file bytes
+                file_bytes = file.read()
+                
+                # Process the file bytes directly using a temporary file
+                documents = process_file_bytes(file_bytes, file.filename)
+                all_documents.extend(documents)
+                processed_files.append(file.filename)
         
         # Create chunks and embeddings
         _documents = all_documents
@@ -79,8 +79,8 @@ def upload():
         _vector_store = create_pinecone_vector_store(_index_name, _embeddings, _chunks)
         
         return jsonify({
-            "message": "Files uploaded and processed successfully", 
-            "file_paths": file_paths,
+            "message": "Files processed successfully", 
+            "processed_files": processed_files,
             "document_count": len(_documents),
             "chunk_count": len(_chunks)
         })
@@ -115,8 +115,8 @@ def chatbot():
 
 @app.route('/reset', methods=['POST'])
 def reset():
-    """Clears uploaded files and resets Pinecone index."""
-    global _documents, _chunks, _embeddings, _vector_store, _llm
+    """Clears chat context and resets Pinecone index."""
+    global _documents, _chunks, _embeddings, _vector_store, _llm, _index_name
     
     try:
         # Reset global variables
@@ -125,6 +125,8 @@ def reset():
         _embeddings = None
         _vector_store = None
         _llm = None
+        _index_name = None
+        
         # Delete Pinecone index
         try:
             pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
@@ -133,11 +135,9 @@ def reset():
         except Exception as e:
             print(f"Error deleting Pinecone indexes: {str(e)}")
         
-        # Delete uploaded files
-        shutil.rmtree(UPLOAD_FOLDER)
-        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        # No longer cleaning up file system as we're not storing files permanently
         
-        return jsonify({"message": "Reset successful"})
+        return jsonify({"message": "Chat reset successful"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

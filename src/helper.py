@@ -2,6 +2,7 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 import os
+import tempfile
 from pinecone import Pinecone, ServerlessSpec
 from dotenv import load_dotenv
 from langchain_pinecone import PineconeVectorStore
@@ -16,6 +17,35 @@ def load_documents(file_path):
     loader = PyPDFLoader(file_path)
     documents = loader.load()
     return documents
+
+def process_file_bytes(file_bytes, filename):
+    """Processes a file directly from its bytes using a temporary file.
+    
+    Args:
+        file_bytes: The binary content of the file
+        filename: Original filename (for metadata)
+        
+    Returns:
+        List of document chunks
+    """
+    # Create a temporary file
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_file:
+        temp_file.write(file_bytes)
+        temp_path = temp_file.name
+    
+    try:
+        # Load documents from the temporary file
+        documents = load_documents(temp_path)
+        
+        # Add original filename to metadata
+        for doc in documents:
+            doc.metadata["source"] = filename
+            
+        return documents
+    finally:
+        # Always clean up the temporary file
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
 def create_chunk(documents):
     """Splits documents into smaller chunks."""
