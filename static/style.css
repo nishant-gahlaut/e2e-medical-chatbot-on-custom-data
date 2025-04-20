@@ -90,10 +90,50 @@ html, body {
     word-break: break-word; /* Prevent long filenames from overflowing */
 }
 
+/* Upload Status and Progress Styling */
+.upload-status {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: var(--bg-color-light);
+    border-radius: var(--border-radius-small);
+    transition: all 0.3s ease;
+}
+
+.upload-status.hidden {
+    display: none;
+}
+
+.upload-progress-container {
+    height: 8px;
+    background-color: var(--bg-color-dark);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.upload-progress-bar {
+    height: 100%;
+    width: 0;
+    background-color: var(--accent-color);
+    transition: width 0.5s ease;
+}
+
+.upload-status-text {
+    font-size: 0.85rem;
+    color: var(--text-color-primary);
+    margin-bottom: 4px;
+}
+
+.upload-time-estimate {
+    font-size: 0.8rem;
+    color: var(--text-color-secondary);
+    font-style: italic;
+}
+
 /* Reset Button at the Bottom */
 .sidebar .btn-reset {
     position: absolute;
-    bottom: 20px;
+    bottom: 65px; /* Move up to make room for delete button */
     left: 20px;
     right: 20px; /* Stretch across padding */
     width: calc(100% - 40px); /* Calculate width based on padding */
@@ -107,6 +147,26 @@ html, body {
     color: #ffffff;
 }
 .sidebar .btn-reset i {
+    margin-right: 5px;
+}
+
+/* Delete Button at the Bottom */
+.sidebar .btn-delete {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    right: 20px; /* Stretch across padding */
+    width: calc(100% - 40px); /* Calculate width based on padding */
+    background-color: var(--bg-color-light);
+    color: var(--text-color-secondary);
+    border: 1px solid var(--border-color-light);
+    transition: all 0.2s ease;
+}
+.sidebar .btn-delete:hover {
+    background-color: var(--error-color); /* Red color on hover for warning */
+    color: #ffffff;
+}
+.sidebar .btn-delete i {
     margin-right: 5px;
 }
 

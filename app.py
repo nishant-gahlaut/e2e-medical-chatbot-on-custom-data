@@ -52,8 +52,19 @@ def upload():
         all_documents = []
         processed_files = []
         
+        # Maximum file size (10MB)
+        MAX_FILE_SIZE = 10 * 1024 * 1024
+        
         for file in files:
             if file.filename:
+                # Check file size
+                file.seek(0, os.SEEK_END)
+                file_size = file.tell()
+                file.seek(0)
+                
+                if file_size > MAX_FILE_SIZE:
+                    return jsonify({"error": f"File {file.filename} exceeds the 10MB size limit"}), 400
+                
                 # Read file bytes
                 file_bytes = file.read()
                 
@@ -65,6 +76,11 @@ def upload():
         # Create chunks and embeddings
         _documents = all_documents
         _chunks = create_chunk(_documents)
+        
+        # Process in smaller batches if many chunks
+        BATCH_SIZE = 50
+        all_batches = [_chunks[i:i + BATCH_SIZE] for i in range(0, len(_chunks), BATCH_SIZE)]
+        
         _embeddings = create_embeddings()
         _index_name = f"medical-docs-{int(time.time())}"
         
@@ -75,8 +91,19 @@ def upload():
             # Index might already exist
             print(f"Index creation error (might already exist): {str(e)}")
         
-        # Create vector store
-        _vector_store = create_pinecone_vector_store(_index_name, _embeddings, _chunks)
+        # Create vector store processing batches to avoid memory issues
+        for i, batch in enumerate(all_batches):
+            if i == 0:
+                # First batch creates the store
+                _vector_store = create_pinecone_vector_store(_index_name, _embeddings, batch)
+            else:
+                # Add subsequent batches
+                PineconeVectorStore.from_documents(
+                    documents=batch,
+                    embedding=_embeddings,
+                    index_name=_index_name,
+                    pinecone_api_key=os.getenv("PINECONE_API_KEY")
+                )
         
         return jsonify({
             "message": "Files processed successfully", 
@@ -115,11 +142,20 @@ def chatbot():
 
 @app.route('/reset', methods=['POST'])
 def reset():
-    """Clears chat context and resets Pinecone index."""
+    """Deletes Pinecone indexes and resets server-side resources."""
     global _documents, _chunks, _embeddings, _vector_store, _llm, _index_name
     
     try:
-        # Reset global variables
+        # Delete Pinecone index first (to free up external resources)
+        if _index_name:
+            try:
+                pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
+                # Only delete our specific index
+                pc.delete_index(_index_name)
+            except Exception as e:
+                print(f"Error deleting Pinecone index: {str(e)}")
+        
+        # Reset global variables to free memory
         _documents = None
         _chunks = None
         _embeddings = None
@@ -127,19 +163,23 @@ def reset():
         _llm = None
         _index_name = None
         
-        # Delete Pinecone index
-        try:
-            pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
-            for index in pc.list_indexes():
-                pc.delete_index(index.name)
-        except Exception as e:
-            print(f"Error deleting Pinecone indexes: {str(e)}")
+        # Force garbage collection
+        import gc
+        gc.collect()
         
-        # No longer cleaning up file system as we're not storing files permanently
-        
-        return jsonify({"message": "Chat reset successful"})
+        return jsonify({"message": "Files deleted successfully"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=8080, debug=True)
+    # Set higher timeouts to allow for processing larger files
+    from werkzeug.serving import run_simple
+    
+    # Configure app for production-like settings
+    app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  # 20MB max upload
+    
+    run_simple('0.0.0.0', 8080, app, 
+               use_reloader=True,
+               use_debugger=True,
+               threaded=True,
+               passthrough_errors=True)

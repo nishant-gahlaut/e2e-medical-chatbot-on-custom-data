@@ -49,7 +49,7 @@ def process_file_bytes(file_bytes, filename):
 
 def create_chunk(documents):
     """Splits documents into smaller chunks."""
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
     chunks = text_splitter.split_documents(documents)
     return chunks
 
@@ -59,7 +59,7 @@ def create_embeddings():
         embeddings = HuggingFaceEmbeddings(
             model_name="BAAI/bge-base-en",
             model_kwargs={"device": "cpu"},
-            encode_kwargs={"normalize_embeddings": True}
+            encode_kwargs={"normalize_embeddings": True, "batch_size": 8}
         )
         return embeddings
     except Exception as e:

@@ -26,11 +26,23 @@
                 <input type="file" id="fileInput" multiple style="display: none;">
                 <button class="btn btn-secondary btn-trigger-upload" onclick="uploadFiles()">Confirm Upload</button>
                 <small id="file-info">No files selected</small> <!-- Optional: Show selected file names -->
+                
+                <!-- New upload progress and status indicator -->
+                <div id="upload-status" class="upload-status hidden">
+                    <div class="upload-progress-container">
+                        <div id="upload-progress-bar" class="upload-progress-bar"></div>
+                    </div>
+                    <div id="upload-status-text" class="upload-status-text">Processing files...</div>
+                    <div id="upload-time-estimate" class="upload-time-estimate"></div>
+                </div>
             </div>
 
             <!-- Reset Button at the Bottom -->
-            <button class="btn btn-reset" onclick="resetChat()">
-                <i class="fas fa-trash-alt"></i> Clear Chat
+            <button class="btn btn-reset" onclick="clearChatUI()">
+                <i class="fas fa-broom"></i> Clear Chat
+            </button>
+            <button class="btn btn-delete" onclick="deleteFiles()">
+                <i class="fas fa-trash-alt"></i> Delete Files
             </button>
         </aside>
 
@@ -142,11 +154,41 @@
             for (let file of fileInput.files) {
                 formData.append('files', file);
             }
-
-            // Add a visual indicator for upload start
-            addMessage(`Processing ${fileInput.files.length} file(s)...`, false); // Show processing message
+            
+            // Show upload status container
+            const uploadStatus = document.getElementById('upload-status');
+            const uploadProgressBar = document.getElementById('upload-progress-bar');
+            const uploadStatusText = document.getElementById('upload-status-text');
+            const uploadTimeEstimate = document.getElementById('upload-time-estimate');
+            
+            if (uploadStatus) uploadStatus.classList.remove('hidden');
+            if (uploadProgressBar) uploadProgressBar.style.width = '5%'; // Initial progress
+            if (uploadStatusText) uploadStatusText.textContent = 'Starting upload...';
+            
+            // Calculate estimated time based on file size
+            const totalSizeMB = Array.from(fileInput.files).reduce((acc, file) => acc + file.size, 0) / (1024 * 1024);
+            const estimatedTimeSeconds = Math.max(5, Math.ceil(totalSizeMB * 1.5)); // Rough estimate: 1.5 sec per MB, minimum 5 seconds
+            if (uploadTimeEstimate) uploadTimeEstimate.textContent = `Estimated time: ${estimatedTimeSeconds} seconds`;
+            
+            // Set up progress simulation (since we don't have real upload progress)
+            let progress = 5;
+            const progressInterval = setInterval(() => {
+                if (progress < 90) {
+                    progress += Math.random() * 5; // Random increment for natural feel
+                    if (uploadProgressBar) uploadProgressBar.style.width = `${progress}%`;
+                    
+                    // Update status text based on progress
+                    if (uploadStatusText) {
+                        if (progress < 30) uploadStatusText.textContent = 'Uploading files...';
+                        else if (progress < 60) uploadStatusText.textContent = 'Processing content...';
+                        else uploadStatusText.textContent = 'Creating embeddings...';
+                    }
+                }
+            }, 500);
+            
+            // Disable upload button
             const confirmButton = document.querySelector('.btn-trigger-upload');
-            if(confirmButton) confirmButton.disabled = true; // Disable button during upload
+            if(confirmButton) confirmButton.disabled = true;
 
             try {
                 const response = await fetch('/upload', {
@@ -154,46 +196,87 @@
                     body: formData
                 });
 
+                // Clear interval and set to 100% when complete
+                clearInterval(progressInterval);
+                if (uploadProgressBar) uploadProgressBar.style.width = '100%';
+                
                 if (!response.ok) {
-                     const errorText = await response.text();
-                     throw new Error(`Processing failed: ${response.status} ${response.statusText}. ${errorText}`);
+                    const errorText = await response.text();
+                    throw new Error(`Processing failed: ${response.status} ${response.statusText}. ${errorText}`);
                 }
 
                 const data = await response.json();
-                alert(data.message || 'Files processed successfully!'); 
-                addMessage(data.message || 'Files processed successfully!', false);
-                fileInfo.textContent = 'No files selected'; // Reset file info
-                fileInput.value = ''; // Clear the file input selection
+                
+                // Update upload status with success
+                if (uploadStatusText) uploadStatusText.textContent = 'Files processed successfully!';
+                if (uploadTimeEstimate) uploadTimeEstimate.textContent = `${data.document_count} documents | ${data.chunk_count} chunks created`;
+                
+                // Reset file inputs
+                fileInfo.textContent = 'No files selected';
+                fileInput.value = '';
 
             } catch (error) {
                 console.error("Processing error:", error);
-                alert(`Error processing files: ${error.message}`);
-                addMessage(`Error processing files: ${error.message}`, false); // Show error in chat
+                
+                // Update upload status with error
+                if (uploadStatusText) uploadStatusText.textContent = `Error: ${error.message}`;
+                if (uploadTimeEstimate) uploadTimeEstimate.textContent = '';
+                if (uploadProgressBar) {
+                    uploadProgressBar.style.width = '100%';
+                    uploadProgressBar.style.backgroundColor = 'var(--error-color)';
+                }
+                
             } finally {
-                 if(confirmButton) confirmButton.disabled = false; // Re-enable button
+                if(confirmButton) confirmButton.disabled = false;
+                
+                // Hide upload status after some time on success
+                setTimeout(() => {
+                    if (uploadProgressBar && uploadProgressBar.style.backgroundColor !== 'var(--error-color)') {
+                        uploadStatus.classList.add('hidden');
+                        // Reset progress bar
+                        uploadProgressBar.style.width = '0%';
+                    }
+                }, 5000);
             }
         }
 
-        async function resetChat() {
+        async function clearChatUI() {
+            const chatContainer = document.getElementById('chatContainer');
+            if (!chatContainer) return;
+            
+            // Clear chat visually immediately without server call
+            chatContainer.innerHTML = '<div class="message bot-message">Chat history cleared. Your uploaded files are still available.</div>';
+        }
+
+        async function deleteFiles() {
             const chatContainer = document.getElementById('chatContainer');
             if (!chatContainer) return;
 
             try {
+                // Show deleting message
+                addMessage("Deleting uploaded files...", false);
+                
                 // Call the reset API endpoint
                 const response = await fetch('/reset', { method: 'POST' });
                 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    throw new Error(`Reset failed: ${response.status} ${response.statusText}. ${errorText}`);
+                    throw new Error(`Delete failed: ${response.status} ${response.statusText}. ${errorText}`);
                 }
 
                 // Clear chat visually
-                chatContainer.innerHTML = '<div class="message bot-message">Chat history cleared. You can upload new files or ask questions about your documents.</div>';
+                chatContainer.innerHTML = '<div class="message bot-message">Files deleted successfully. You can upload new documents now.</div>';
                 
-                // Note: We no longer reset file info or file input since we're only clearing the chat
+                // Reset file info and file input
+                const fileInfo = document.getElementById('file-info');
+                if (fileInfo) fileInfo.textContent = 'No files selected';
+                
+                const fileInput = document.getElementById('fileInput');
+                if (fileInput) fileInput.value = '';
+                
             } catch (error) {
-                console.error("Reset error:", error);
-                addMessage(`Error resetting chat: ${error.message}`, false);
+                console.error("Delete error:", error);
+                addMessage(`Error deleting files: ${error.message}`, false);
             }
         }
 
