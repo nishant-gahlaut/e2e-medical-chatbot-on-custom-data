@@ -10,7 +10,8 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
-from src.prompt import system_prompt
+from src.prompt import system_prompt, title_generation_prompt
+import re
 
 def load_documents(file_path):
     """Loads a PDF document."""
@@ -26,7 +27,7 @@ def process_file_bytes(file_bytes, filename):
         filename: Original filename (for metadata)
         
     Returns:
-        List of document chunks
+        Tuple of (documents, metadata) where metadata contains title and other info
     """
     # Create a temporary file
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_file:
@@ -35,13 +36,31 @@ def process_file_bytes(file_bytes, filename):
     
     try:
         # Load documents from the temporary file
+        print(f"Processing file: {filename}")
         documents = load_documents(temp_path)
         
-        # Add original filename to metadata
+        # Create initial chunks to extract title
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+        initial_chunks = text_splitter.split_documents(documents)
+        
+        # Generate document title
+        llm = load_llm()
+        document_title = generate_document_title(initial_chunks[:2], llm)
+        
+        # Add metadata to documents
         for doc in documents:
             doc.metadata["source"] = filename
+            doc.metadata["title"] = document_title
+        
+        # Create file metadata
+        file_metadata = {
+            "filename": filename,
+            "title": document_title,
+            "page_count": len(documents),
+            "timestamp": int(os.path.getmtime(temp_path)) if os.path.exists(temp_path) else None
+        }
             
-        return documents
+        return documents, file_metadata
     finally:
         # Always clean up the temporary file
         if os.path.exists(temp_path):
@@ -118,3 +137,84 @@ def create_rag_chain(llm, retriever, system_prompt, user_input):
     )
     response = rag_chain.invoke({"input": user_input})
     return response["answer"]
+
+def generate_document_title(chunks, llm=None):
+    """Generates a title for a document using an LLM based on the first few chunks.
+    
+    Args:
+        chunks: List of document chunks, with the first few representing the document intro
+        llm: The LLM to use (if None, will create a new instance)
+        
+    Returns:
+        A generated title for the document
+    """
+    if not chunks or len(chunks) == 0:
+        return "Untitled Document"
+    
+    # Initialize LLM if not provided
+    if llm is None:
+        llm = load_llm()
+    
+    try:
+        # Take content from first 2 chunks (or fewer if not available)
+        sample_size = min(2, len(chunks))
+        intro_text = ""
+        
+        for i in range(sample_size):
+            if hasattr(chunks[i], 'page_content'):
+                intro_text += chunks[i].page_content + " "
+            elif isinstance(chunks[i], str):
+                intro_text += chunks[i] + " "
+                
+        # Limit text length (approximately 1000 tokens)
+        intro_text = intro_text[:4000].strip()
+        
+        if not intro_text:
+            return "Untitled Document"
+        
+        # Create title generation prompt
+        prompt = ChatPromptTemplate.from_template(title_generation_prompt)
+        
+        # Get title from LLM
+        title_response = llm.invoke(prompt.format(document_text=intro_text))
+        
+        # Extract response
+        if hasattr(title_response, 'content'):
+            title = title_response.content
+        else:
+            title = str(title_response)
+        
+        # Clean up title
+        title = clean_title(title)
+        print(f"Generated title: {title}")
+        
+        return title if title else "Untitled Document"
+        
+    except Exception as e:
+        print(f"Error generating title: {str(e)}")
+        return "Untitled Document"
+
+def clean_title(title):
+    """Cleans up a generated title by removing quotes, extra whitespace, etc."""
+    if not title:
+        return ""
+    
+    # Remove quotes and extra spaces
+    title = re.sub(r'^["\'"\']|["\'"\']$', '', title.strip())
+    title = re.sub(r'\s+', ' ', title)
+    
+    # Remove common prefixes LLMs might add
+    prefixes_to_remove = ['title:', 'document title:', 'suggested title:']
+    for prefix in prefixes_to_remove:
+        if title.lower().startswith(prefix):
+            title = title[len(prefix):].strip()
+    
+    # Ensure proper capitalization (if title is too lowercase)
+    if not any(c.isupper() for c in title):
+        title = title.title()
+    
+    # Limit length
+    if len(title) > 50:
+        title = title[:47] + "..."
+        
+    return title.strip()

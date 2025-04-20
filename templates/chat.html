@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chatbot Library</title>
+    <title>HeyBro.! - Your Personal AI Sathi</title>
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <!-- Link Google Fonts (Roboto) -->
@@ -12,6 +12,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <!-- Link Font Awesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="https://img.icons8.com/color/96/000000/chat--v1.png">
 </head>
 <body>
     <div class="app-container">
@@ -20,7 +22,7 @@
             <div class="sidebar-top">
                 <!-- File Upload Section -->
                 <label for="fileInput" class="btn btn-primary btn-upload">
-                    <i class="fas fa-cloud-upload-alt"></i> Upload File(s)
+                    <i class="fas fa-cloud-upload-alt"></i> Upload Documents
                 </label>
                 <!-- Hide the actual file input, style the label as a button -->
                 <input type="file" id="fileInput" multiple style="display: none;">
@@ -34,6 +36,21 @@
                     </div>
                     <div id="upload-status-text" class="upload-status-text">Processing files...</div>
                     <div id="upload-time-estimate" class="upload-time-estimate"></div>
+                </div>
+                
+                <!-- Document Library Section -->
+                <div id="document-library" class="document-library">
+                    <div class="library-header" id="library-toggle" onclick="toggleLibrary()">
+                        <div class="library-title">
+                            <i class="fas fa-book"></i> Your Library
+                            <span class="notification-badge" style="display: none;">0</span>
+                        </div>
+                        <i class="fas fa-chevron-down library-toggle-icon"></i>
+                    </div>
+                    <div id="document-list" class="document-list">
+                        <!-- Document items will be added here dynamically -->
+                        <div class="document-loading">Waiting for documents...</div>
+                    </div>
                 </div>
             </div>
 
@@ -50,20 +67,20 @@
         <main class="chat-area">
             <!-- Centered Title -->
             <div class="chat-header">
-                <h1>Your personal Library</h1>
-                <p>Upload documents using the sidebar, then ask questions below.</p>
+                <h1>Hey<span class="accent-text">Bro</span><span class="accent-mark">.</span><span class="accent-mark">!</span></h1>
+                <p>Your personalized AI Sathi, rooted in everyday usefulness</p>
             </div>
 
             <!-- Chat Messages Container -->
             <div class="chat-container" id="chatContainer">
                 <!-- Initial Bot Message -->
-                <div class="message bot-message">Hello! I'm your chatbot for your personal library. Upload files or ask me anything about them.</div>
+                <div class="message bot-message">HeyBro, Upload files and ask me anything about them.</div>
                 <!-- Messages will be added here by JavaScript -->
             </div>
 
             <!-- Input Section at the Bottom -->
             <div class="input-section">
-                <input type="text" class="chat-input" id="userInput" placeholder="Type your question...">
+                <input type="text" class="chat-input" id="userInput" placeholder="ask something...">
                 <button class="btn btn-send" onclick="sendMessage()">
                     <i class="fas fa-paper-plane"></i>
                 </button>
@@ -211,6 +228,11 @@
                 if (uploadStatusText) uploadStatusText.textContent = 'Files processed successfully!';
                 if (uploadTimeEstimate) uploadTimeEstimate.textContent = `${data.document_count} documents | ${data.chunk_count} chunks created`;
                 
+                // Update document library with new documents
+                if (data.documents && data.documents.length > 0) {
+                    updateDocumentLibrary(data.documents);
+                }
+                
                 // Reset file inputs
                 fileInfo.textContent = 'No files selected';
                 fileInput.value = '';
@@ -239,22 +261,144 @@
                 }, 5000);
             }
         }
+        
+        // Function to update the document library
+        function updateDocumentLibrary(documents) {
+            const documentLibrary = document.getElementById('document-library');
+            const documentList = document.getElementById('document-list');
+            const libraryToggle = document.getElementById('library-toggle');
+            
+            if (!documentLibrary || !documentList) {
+                console.error("Document library elements not found in DOM");
+                return;
+            }
+            
+            // Activate library section
+            documentLibrary.classList.add('active');
+            
+            // Initially expand the library to show documents
+            documentLibrary.classList.add('expanded');
+            
+            // Update the chevron icon to match expanded state
+            const chevron = libraryToggle.querySelector('.library-toggle-icon');
+            if (chevron) {
+                chevron.classList.remove('fa-chevron-down');
+                chevron.classList.add('fa-chevron-up');
+            }
+            
+            // Update notification badge
+            let badgeElement = libraryToggle.querySelector('.notification-badge');
+            if (badgeElement) {
+                if (documents.length > 0) {
+                    badgeElement.textContent = documents.length;
+                    badgeElement.style.display = 'inline-flex';
+                } else {
+                    badgeElement.style.display = 'none';
+                }
+            }
+            
+            // Clear existing list
+            documentList.innerHTML = '';
+            
+            // Add document items
+            documents.forEach(doc => {
+                const docItem = document.createElement('div');
+                docItem.className = 'document-item';
+                docItem.setAttribute('data-filename', doc.filename);
+                docItem.setAttribute('data-title', doc.title || 'Untitled Document');
+                
+                // Choose icon based on filename extension
+                let iconClass = 'fas fa-file-pdf';
+                if (doc.filename.toLowerCase().endsWith('.docx') || doc.filename.toLowerCase().endsWith('.doc')) {
+                    iconClass = 'fas fa-file-word';
+                } else if (doc.filename.toLowerCase().endsWith('.txt')) {
+                    iconClass = 'fas fa-file-alt';
+                }
+                
+                docItem.innerHTML = `
+                    <i class="${iconClass} document-icon"></i>
+                    <span class="document-title">${doc.title || 'Untitled Document'}</span>
+                    <div class="document-tooltip">${doc.title || 'Untitled Document'}</div>
+                `;
+                
+                // Add click handler
+                docItem.addEventListener('click', () => {
+                    // Toggle active state
+                    document.querySelectorAll('.document-item').forEach(item => {
+                        item.classList.remove('active');
+                    });
+                    docItem.classList.add('active');
+                    
+                    // Could add functionality here to filter queries to this document
+                });
+                
+                documentList.appendChild(docItem);
+            });
+        }
+        
+        // Direct toggle library function
+        function toggleLibrary() {
+            const documentLibrary = document.getElementById('document-library');
+            const libraryToggle = document.getElementById('library-toggle');
+            
+            if (documentLibrary) {
+                documentLibrary.classList.toggle('expanded');
+                
+                // Toggle the chevron icon
+                const chevron = libraryToggle.querySelector('.library-toggle-icon');
+                if (chevron) {
+                    chevron.classList.toggle('fa-chevron-down');
+                    chevron.classList.toggle('fa-chevron-up');
+                }
+            }
+        }
+        
+        // Function to load existing documents on page load
+        async function loadExistingDocuments() {
+            try {
+                const response = await fetch('/documents');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.documents && data.documents.length > 0) {
+                        updateDocumentLibrary(data.documents);
+                    } else {
+                        // Show the library anyway with empty state
+                        const documentLibrary = document.getElementById('document-library');
+                        if (documentLibrary) documentLibrary.classList.add('active');
+                    }
+                } else {
+                    console.error("Failed to load documents, status:", response.status);
+                }
+            } catch (error) {
+                console.error("Error loading documents:", error);
+            }
+            
+            // Setup toggle functionality
+            toggleLibrary();
+        }
+        
+        // Load documents when page loads
+        document.addEventListener('DOMContentLoaded', loadExistingDocuments);
+        
+        // Also try loading when window is fully loaded
+        window.addEventListener('load', toggleLibrary);
 
         async function clearChatUI() {
             const chatContainer = document.getElementById('chatContainer');
             if (!chatContainer) return;
             
             // Clear chat visually immediately without server call
-            chatContainer.innerHTML = '<div class="message bot-message">Chat history cleared. Your uploaded files are still available.</div>';
+            chatContainer.innerHTML = '<div class="message bot-message">Chat cleared. Your documents are still available.</div>';
         }
 
         async function deleteFiles() {
             const chatContainer = document.getElementById('chatContainer');
+            const documentLibrary = document.getElementById('document-library');
             if (!chatContainer) return;
 
             try {
                 // Show deleting message
-                addMessage("Deleting uploaded files...", false);
+                addMessage("Deleting documents...", false);
                 
                 // Call the reset API endpoint
                 const response = await fetch('/reset', { method: 'POST' });
@@ -265,7 +409,14 @@
                 }
 
                 // Clear chat visually
-                chatContainer.innerHTML = '<div class="message bot-message">Files deleted successfully. You can upload new documents now.</div>';
+                chatContainer.innerHTML = '<div class="message bot-message">Documents deleted. Upload new files to continue.</div>';
+                
+                // Reset document library
+                if (documentLibrary) {
+                    documentLibrary.classList.remove('active');
+                    const documentList = document.getElementById('document-list');
+                    if (documentList) documentList.innerHTML = '';
+                }
                 
                 // Reset file info and file input
                 const fileInfo = document.getElementById('file-info');

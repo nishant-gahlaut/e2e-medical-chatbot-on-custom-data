@@ -29,6 +29,7 @@ _embeddings = None
 _vector_store = None
 _llm = None
 _index_name = None
+_document_metadata = []  # List to store document metadata
 
 @app.route('/')
 def index():
@@ -38,7 +39,7 @@ def index():
 @app.route('/upload', methods=['POST'])
 def upload():
     """Handles multiple file uploads and processes them for vector storage without permanent storage."""
-    global _documents, _chunks, _embeddings, _vector_store, _llm, _index_name
+    global _documents, _chunks, _embeddings, _vector_store, _llm, _index_name, _document_metadata
     
     if 'files' not in request.files:
         return jsonify({"error": "No files part"}), 400
@@ -50,6 +51,7 @@ def upload():
     try:
         # Process files directly without saving to permanent storage
         all_documents = []
+        all_metadata = []
         processed_files = []
         
         # Maximum file size (10MB)
@@ -69,9 +71,14 @@ def upload():
                 file_bytes = file.read()
                 
                 # Process the file bytes directly using a temporary file
-                documents = process_file_bytes(file_bytes, file.filename)
+                documents, file_metadata = process_file_bytes(file_bytes, file.filename)
                 all_documents.extend(documents)
+                all_metadata.append(file_metadata)
                 processed_files.append(file.filename)
+        
+        # Store document metadata
+        _document_metadata = all_metadata
+        print(f"Documents processed: {len(_document_metadata)}")
         
         # Create chunks and embeddings
         _documents = all_documents
@@ -109,11 +116,26 @@ def upload():
             "message": "Files processed successfully", 
             "processed_files": processed_files,
             "document_count": len(_documents),
-            "chunk_count": len(_chunks)
+            "chunk_count": len(_chunks),
+            "documents": _document_metadata  # Return document metadata including titles
         })
     except Exception as e:
         print(f"Error processing files: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+@app.route('/documents', methods=['GET'])
+def get_documents():
+    """Returns the list of uploaded documents with metadata."""
+    global _document_metadata
+    
+    # Simplified log
+    if _document_metadata:
+        print(f"Returning {len(_document_metadata)} documents")
+    
+    if not _document_metadata:
+        return jsonify({"documents": [], "message": "No documents uploaded yet"})
+    
+    return jsonify({"documents": _document_metadata})
 
 @app.route("/search", methods=["GET"])
 def chatbot():
@@ -143,7 +165,7 @@ def chatbot():
 @app.route('/reset', methods=['POST'])
 def reset():
     """Deletes Pinecone indexes and resets server-side resources."""
-    global _documents, _chunks, _embeddings, _vector_store, _llm, _index_name
+    global _documents, _chunks, _embeddings, _vector_store, _llm, _index_name, _document_metadata
     
     try:
         # Delete Pinecone index first (to free up external resources)
@@ -162,6 +184,7 @@ def reset():
         _vector_store = None
         _llm = None
         _index_name = None
+        _document_metadata = []  # Clear document metadata
         
         # Force garbage collection
         import gc

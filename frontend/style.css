@@ -7,8 +7,8 @@
     --bg-color-hover: #4a4b4f;   /* Button hover */
     --text-color-primary: #e1e2e6; /* Main text */
     --text-color-secondary: #9aa0a6;/* Subtle text, placeholders */
-    --accent-color: #4c84ff;     /* HeyBro brand color - vibrant blue */
-    --accent-color-hover: #6a98ff;
+    --accent-color: #8ab4f8;     /* Primary buttons, highlights */
+    --accent-color-hover: #a1c2fa;
     --accent-text-dark: #202124; /* Text on accent background */
     --border-color: #3c3d40;
     --border-color-light: #5f6368;
@@ -90,224 +90,10 @@ html, body {
     word-break: break-word; /* Prevent long filenames from overflowing */
 }
 
-/* Upload Status and Progress Styling */
-.upload-status {
-    margin-top: 15px;
-    padding: 10px;
-    background-color: var(--bg-color-light);
-    border-radius: var(--border-radius-small);
-    transition: all 0.3s ease;
-}
-
-.upload-status.hidden {
-    display: none;
-}
-
-.upload-progress-container {
-    height: 8px;
-    background-color: var(--bg-color-dark);
-    border-radius: 4px;
-    overflow: hidden;
-    margin-bottom: 8px;
-}
-
-.upload-progress-bar {
-    height: 100%;
-    width: 0;
-    background-color: var(--accent-color);
-    transition: width 0.5s ease;
-}
-
-.upload-status-text {
-    font-size: 0.85rem;
-    color: var(--text-color-primary);
-    margin-bottom: 4px;
-}
-
-.upload-time-estimate {
-    font-size: 0.8rem;
-    color: var(--text-color-secondary);
-    font-style: italic;
-}
-
-/* Document Library Section */
-.document-library {
-    margin-top: 20px;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    transition: all 0.3s ease;
-    border-radius: var(--border-radius-main);
-    background-color: var(--bg-color-light);
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-    position: relative;
-    max-height: 40px; /* Initially only show the header */
-    z-index: 10;
-}
-
-.document-library.active {
-    border: 1px solid var(--border-color);
-}
-
-.document-library.expanded {
-    max-height: 300px !important; /* Force expanded state with !important */
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-    border: 1px solid var(--accent-color);
-    overflow-y: auto; /* Enable scrolling when expanded */
-}
-
-.library-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 15px;
-    color: var(--text-color-primary);
-    font-weight: 500;
-    font-size: 0.9rem;
-    cursor: pointer;
-    background-color: var(--bg-color-medium);
-    border-bottom: 1px solid var(--border-color);
-    transition: background-color 0.2s ease;
-    user-select: none;
-}
-
-.library-title {
-    display: flex;
-    align-items: center;
-}
-
-.library-header:hover {
-    background-color: var(--bg-color-hover);
-}
-
-.library-header i:first-child {
-    margin-right: 8px;
-    color: var(--accent-color);
-}
-
-.library-toggle-icon {
-    color: var(--text-color-secondary);
-    font-size: 0.8rem;
-    transition: transform 0.3s ease;
-}
-
-.document-list {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    overflow-y: auto;
-    padding: 10px;
-    max-height: 250px;
-}
-
-.document-item {
-    display: flex;
-    align-items: center;
-    padding: 8px 10px;
-    background-color: var(--bg-color-dark);
-    border-radius: var(--border-radius-small);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border-left: 3px solid transparent;
-}
-
-.document-item:hover {
-    background-color: var(--bg-color-hover);
-    border-left-color: var(--accent-color);
-    transform: translateX(2px);
-}
-
-.document-item.active {
-    background-color: var(--bg-color-hover);
-    border-left: 3px solid var(--accent-color);
-}
-
-.document-icon {
-    margin-right: 10px;
-    color: var(--accent-color);
-    font-size: 1.1rem;
-}
-
-.document-title {
-    flex: 1;
-    font-size: 0.85rem;
-    color: var(--text-color-primary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    transition: all 0.2s ease;
-}
-
-.document-item:hover .document-title {
-    color: var(--accent-color);
-}
-
-/* Remove the old hover tooltip */
-.document-item:hover .document-title::after {
-    display: none;
-}
-
-/* Tooltip for document titles */
-.document-item {
-    position: relative;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-.document-item:hover::after {
-    content: attr(data-title);
-    position: absolute;
-    left: 0;
-    top: -35px;
-    background-color: var(--bg-color-dark);
-    color: white;
-    padding: 8px 12px;
-    border-radius: 4px;
-    z-index: 1000; /* Very high z-index to appear above everything */
-    width: 220px;
-    white-space: normal;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
-    border-left: 3px solid var(--accent-color);
-    font-size: 0.85rem;
-    animation: fadeIn 0.15s ease-in;
-    word-wrap: break-word;
-}
-
-.document-loading {
-    font-size: 0.85rem;
-    color: var(--text-color-secondary);
-    font-style: italic;
-    padding: 10px;
-    text-align: center;
-}
-
-/* Hide document pages */
-.document-item .document-pages {
-    display: none;
-}
-
-/* Notifications badges for new documents */
-.library-header .notification-badge {
-    background-color: var(--accent-color);
-    color: white;
-    font-size: 0.7rem;
-    border-radius: 50%;
-    width: 18px;
-    height: 18px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-left: 8px;
-    font-weight: bold;
-}
-
 /* Reset Button at the Bottom */
 .sidebar .btn-reset {
     position: absolute;
-    bottom: 65px; /* Move up to make room for delete button */
+    bottom: 20px;
     left: 20px;
     right: 20px; /* Stretch across padding */
     width: calc(100% - 40px); /* Calculate width based on padding */
@@ -321,26 +107,6 @@ html, body {
     color: #ffffff;
 }
 .sidebar .btn-reset i {
-    margin-right: 5px;
-}
-
-/* Delete Button at the Bottom */
-.sidebar .btn-delete {
-    position: absolute;
-    bottom: 20px;
-    left: 20px;
-    right: 20px; /* Stretch across padding */
-    width: calc(100% - 40px); /* Calculate width based on padding */
-    background-color: var(--bg-color-light);
-    color: var(--text-color-secondary);
-    border: 1px solid var(--border-color-light);
-    transition: all 0.2s ease;
-}
-.sidebar .btn-delete:hover {
-    background-color: var(--error-color); /* Red color on hover for warning */
-    color: #ffffff;
-}
-.sidebar .btn-delete i {
     margin-right: 5px;
 }
 
@@ -365,18 +131,6 @@ html, body {
     font-weight: 500;
     margin-bottom: 8px;
     color: #ffffff; /* Slightly brighter for title */
-}
-
-/* HeyBro.! Logo Styling */
-.chat-header .accent-text {
-    color: var(--accent-color);
-    font-weight: 700;
-}
-
-.chat-header .accent-mark {
-    color: var(--accent-color);
-    font-weight: 700;
-    font-size: 1.1em;
 }
 
 .chat-header p {
@@ -521,36 +275,4 @@ html, body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: var(--bg-color-hover);
-}
-
-/* Document title tooltip */
-.document-tooltip {
-    position: absolute;
-    left: -20px;
-    top: -45px;
-    background-color: #1a1a1a;
-    color: white;
-    padding: 8px 12px;
-    border-radius: 4px;
-    width: 250px;
-    white-space: normal;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
-    border-left: 3px solid var(--accent-color);
-    font-size: 0.85rem;
-    word-wrap: break-word;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.2s ease, visibility 0.2s ease;
-    z-index: 1000;
-}
-
-.document-item:hover .document-tooltip {
-    opacity: 1;
-    visibility: visible;
-}
-
-/* Remove the old after pseudo-element tooltip */
-.document-item:hover::after {
-    display: none;
-    content: none;
 }

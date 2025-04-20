@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot Library</title>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css">
+    <!-- <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"> -->
+    <!-- Link Google Fonts (Roboto) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Link Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Left Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-top">
+                <!-- File Upload Section -->
+                <label for="fileInput" class="btn btn-primary btn-upload">
+                    <i class="fas fa-cloud-upload-alt"></i> Upload File(s)
+                </label>
+                <!-- Hide the actual file input, style the label as a button -->
+                <input type="file" id="fileInput" multiple style="display: none;">
+                <button class="btn btn-secondary btn-trigger-upload" onclick="uploadFiles()">Confirm Upload</button>
+                <small id="file-info">No files selected</small> <!-- Optional: Show selected file names -->
+            </div>
+
+            <!-- Reset Button at the Bottom -->
+            <button class="btn btn-reset" onclick="resetChat()">
+                <i class="fas fa-trash-alt"></i> Clear Chat
+            </button>
+        </aside>
+
+        <!-- Main Chat Area -->
+        <main class="chat-area">
+            <!-- Centered Title -->
+            <div class="chat-header">
+                <h1>Your personal Library</h1>
+                <p>Upload documents using the sidebar, then ask questions below.</p>
+            </div>
+
+            <!-- Chat Messages Container -->
+            <div class="chat-container" id="chatContainer">
+                <!-- Initial Bot Message -->
+                <div class="message bot-message">Hello! I'm your chatbot for your personal library. Upload files or ask me anything about them.</div>
+                <!-- Messages will be added here by JavaScript -->
+            </div>
+
+            <!-- Input Section at the Bottom -->
+            <div class="input-section">
+                <input type="text" class="chat-input" id="userInput" placeholder="Type your question...">
+                <button class="btn btn-send" onclick="sendMessage()">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('file-info'); // Get the info element
+
+        // Update file info display when files are selected
+        if (fileInput && fileInfo) {
+            fileInput.addEventListener('change', () => {
+                if (fileInput.files.length > 0) {
+                    const fileNames = Array.from(fileInput.files).map(f => f.name).join(', ');
+                    fileInfo.textContent = `${fileInput.files.length} file(s): ${fileNames}`;
+                } else {
+                    fileInfo.textContent = 'No files selected';
+                }
+            });
+        }
+
+        function addMessage(message, isUser) {
+            const chatContainer = document.getElementById('chatContainer');
+            if (!chatContainer) return; // Ensure container exists
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+
+            // Basic Markdown support (bold, italics) - Optional enhancement
+            message = message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); // Bold
+            message = message.replace(/\*(.*?)\*/g, '<em>$1</em>');       // Italics
+            message = message.replace(/\n/g, '<br>'); // Convert newlines
+
+            messageDiv.innerHTML = message; // Use innerHTML to render bold/italics/br
+            chatContainer.appendChild(messageDiv);
+            // Scroll to the bottom smoothly
+            chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+        }
+
+        async function sendMessage() {
+            const userInput = document.getElementById('userInput');
+            if (!userInput) return; // Ensure input exists
+
+            const message = userInput.value.trim();
+
+            if (message) {
+                addMessage(message, true);
+                userInput.value = ''; // Clear input after sending
+
+                try {
+                    // Show typing indicator (optional)
+                    // addMessage("...", false); // Placeholder for typing indicator
+
+                    const response = await fetch(`/search?query=${encodeURIComponent(message)}`);
+
+                    // Remove typing indicator if used
+                    // const typingIndicator = chatContainer.querySelector('.typing-indicator');
+                    // if (typingIndicator) chatContainer.removeChild(typingIndicator);
+
+                    if (!response.ok) {
+                        // Handle HTTP errors (like 404, 500)
+                        const errorText = await response.text();
+                        addMessage(`Server Error: ${response.status} ${response.statusText}. ${errorText}`, false);
+                    } else {
+                        const data = await response.json();
+                        addMessage(data.response || 'Received empty response from server.', false);
+                    }
+                } catch (error) {
+                    console.error("Fetch error:", error);
+                    addMessage(`Network Error: Could not connect to the server. (${error.message})`, false);
+                     // Remove typing indicator on error too
+                    // const typingIndicator = chatContainer.querySelector('.typing-indicator');
+                    // if (typingIndicator) chatContainer.removeChild(typingIndicator);
+                }
+            }
+        }
+
+        async function uploadFiles() {
+            // The actual files are already selected via the hidden input
+            if (!fileInput || fileInput.files.length === 0) {
+                alert('Please select at least one file using the "Upload File(s)" button first.');
+                return;
+            }
+
+            const formData = new FormData();
+            for (let file of fileInput.files) {
+                formData.append('files', file);
+            }
+
+            // Add a visual indicator for upload start
+            addMessage(`Processing ${fileInput.files.length} file(s)...`, false); // Show processing message
+            const confirmButton = document.querySelector('.btn-trigger-upload');
+            if(confirmButton) confirmButton.disabled = true; // Disable button during upload
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                     const errorText = await response.text();
+                     throw new Error(`Processing failed: ${response.status} ${response.statusText}. ${errorText}`);
+                }
+
+                const data = await response.json();
+                alert(data.message || 'Files processed successfully!'); 
+                addMessage(data.message || 'Files processed successfully!', false);
+                fileInfo.textContent = 'No files selected'; // Reset file info
+                fileInput.value = ''; // Clear the file input selection
+
+            } catch (error) {
+                console.error("Processing error:", error);
+                alert(`Error processing files: ${error.message}`);
+                addMessage(`Error processing files: ${error.message}`, false); // Show error in chat
+            } finally {
+                 if(confirmButton) confirmButton.disabled = false; // Re-enable button
+            }
+        }
+
+        async function resetChat() {
+            const chatContainer = document.getElementById('chatContainer');
+            if (!chatContainer) return;
+
+            try {
+                // Call the reset API endpoint
+                const response = await fetch('/reset', { method: 'POST' });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Reset failed: ${response.status} ${response.statusText}. ${errorText}`);
+                }
+
+                // Clear chat visually
+                chatContainer.innerHTML = '<div class="message bot-message">Chat history cleared. You can upload new files or ask questions about your documents.</div>';
+                
+                // Note: We no longer reset file info or file input since we're only clearing the chat
+            } catch (error) {
+                console.error("Reset error:", error);
+                addMessage(`Error resetting chat: ${error.message}`, false);
+            }
+        }
+
+        // Send message on Enter key press
+        const userInput = document.getElementById('userInput');
+        if(userInput) {
+            userInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) { // Allow shift+enter for newline later if needed
+                    e.preventDefault(); // Prevent default form submission/newline
+                    sendMessage();
+                }
+            });
+        }
+    </script>
+</body>
+</html>
