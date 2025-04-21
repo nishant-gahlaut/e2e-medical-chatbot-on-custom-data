@@ -307,7 +307,7 @@ html, body {
 /* Reset Button at the Bottom */
 .sidebar .btn-reset {
     position: absolute;
-    bottom: 65px; /* Move up to make room for delete button */
+    bottom: 110px; /* Move up to make room for delete and reset session buttons */
     left: 20px;
     right: 20px; /* Stretch across padding */
     width: calc(100% - 40px); /* Calculate width based on padding */
@@ -327,7 +327,7 @@ html, body {
 /* Delete Button at the Bottom */
 .sidebar .btn-delete {
     position: absolute;
-    bottom: 20px;
+    bottom: 65px; /* Move up to make room for reset session button */
     left: 20px;
     right: 20px; /* Stretch across padding */
     width: calc(100% - 40px); /* Calculate width based on padding */
@@ -341,6 +341,28 @@ html, body {
     color: #ffffff;
 }
 .sidebar .btn-delete i {
+    margin-right: 5px;
+}
+
+/* Reset Session Button at the Bottom */
+.sidebar .btn-danger {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+    width: calc(100% - 40px);
+    background-color: #dc3545;
+    color: #ffffff;
+    border: 1px solid var(--border-color-light);
+    transition: all 0.2s ease;
+    margin-top: 0; /* Remove margin since we're using absolute positioning */
+}
+
+.sidebar .btn-danger:hover {
+    background-color: #c82333;
+}
+
+.sidebar .btn-danger i {
     margin-right: 5px;
 }
 
@@ -553,4 +575,16 @@ html, body {
 .document-item:hover::after {
     display: none;
     content: none;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    margin-top: 8px;
+    width: 100%;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
 }

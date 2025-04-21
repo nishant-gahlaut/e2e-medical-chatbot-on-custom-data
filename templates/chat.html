@@ -61,6 +61,9 @@
             <button class="btn btn-delete" onclick="deleteFiles()">
                 <i class="fas fa-trash-alt"></i> Delete Files
             </button>
+            <button class="btn btn-danger" onclick="resetSession()">
+                <i class="fas fa-power-off"></i> Reset Session
+            </button>
         </aside>
 
         <!-- Main Chat Area -->
@@ -428,6 +431,50 @@
             } catch (error) {
                 console.error("Delete error:", error);
                 addMessage(`Error deleting files: ${error.message}`, false);
+            }
+        }
+
+        async function resetSession() {
+            const chatContainer = document.getElementById('chatContainer');
+            const documentLibrary = document.getElementById('document-library');
+            if (!chatContainer) return;
+
+            if (!confirm('This will reset the entire session, including the Pinecone index. Are you sure?')) {
+                return;
+            }
+
+            try {
+                // Show resetting message
+                addMessage("Resetting session...", false);
+                
+                // Call the reset_session API endpoint
+                const response = await fetch('/reset_session', { method: 'POST' });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Reset failed: ${response.status} ${response.statusText}. ${errorText}`);
+                }
+
+                // Clear chat visually
+                chatContainer.innerHTML = '<div class="message bot-message">Session reset complete. Start fresh by uploading new files.</div>';
+                
+                // Reset document library
+                if (documentLibrary) {
+                    documentLibrary.classList.remove('active');
+                    const documentList = document.getElementById('document-list');
+                    if (documentList) documentList.innerHTML = '';
+                }
+                
+                // Reset file info and file input
+                const fileInfo = document.getElementById('file-info');
+                if (fileInfo) fileInfo.textContent = 'No files selected';
+                
+                const fileInput = document.getElementById('fileInput');
+                if (fileInput) fileInput.value = '';
+                
+            } catch (error) {
+                console.error("Reset error:", error);
+                addMessage(`Error resetting session: ${error.message}`, false);
             }
         }
 

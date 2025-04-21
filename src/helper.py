@@ -22,6 +22,7 @@ import time
 import asyncio
 from concurrent.futures import Future
 from threading import Thread
+import uuid
 
 def log_time(start_time: float, step_name: str) -> float:
     """Helper function to log time taken for each step.
@@ -441,4 +442,37 @@ def create_embeddings():
         return get_cached_embeddings()
     except Exception as e:
         print(f"Error creating embeddings: {str(e)}")
+        raise e
+
+def get_or_create_index(index_name=None):
+    """Gets existing index or creates a new one for the session.
+    
+    Args:
+        index_name: Optional name for the index. If None, generates a new name.
+    
+    Returns:
+        str: Name of the created or existing index
+    """
+    try:
+        # Check if index exists
+        if index_name is None:
+            # Generate a session-based index name
+            session_id = str(uuid.uuid4())[:8]
+            index_name = f"docs-{session_id}"
+            
+        index_start = time.time()
+        print(f"\n📊 Creating new Pinecone index: {index_name}")
+        
+        pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+        if index_name not in pc.list_indexes():
+            index_name = create_pinecone_index(index_name)
+            print(f"📊 New index created: {index_name}")
+        else:
+            print(f"📊 Using existing index: {index_name}")
+            
+        print(f"📊 Index setup complete: {time.time() - index_start:.2f} seconds")
+        
+        return index_name
+    except Exception as e:
+        print(f"⚠️ Error in index setup: {str(e)}")
         raise e

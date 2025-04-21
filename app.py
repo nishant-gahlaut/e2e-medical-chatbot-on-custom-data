@@ -1,12 +1,18 @@
 import os
 import time
+import threading
 from flask import Flask, request, jsonify, render_template, url_for, session
 from dotenv import load_dotenv
 from src.service import get_response
 import shutil
-from src.helper import load_documents, process_file_bytes, create_chunk, create_embeddings, create_pinecone_index, create_pinecone_vector_store, create_rag_chain
+from src.helper import (
+    load_documents, process_file_bytes, create_chunk, create_embeddings,
+    create_pinecone_index, create_pinecone_vector_store, create_rag_chain,
+    get_or_create_index
+)
 from src.prompt import system_prompt
 from pinecone import Pinecone
+from langchain_pinecone import PineconeVectorStore
 import uuid
 from src.model_singletons import get_cached_llm
 
@@ -35,41 +41,39 @@ _index_name = None
 _llm = None
 _document_metadata = []  # List to store document metadata
 
-def get_or_create_index():
-    """Gets existing index or creates a new one for the session."""
-    global _index_name
+def get_index_name():
+    """Get the current index name from app config."""
+    return app.config.get('INDEX_NAME')
+
+def set_index_name(name):
+    """Set the index name in app config."""
+    app.config['INDEX_NAME'] = name
+
+def initialize_models():
+    """Initialize all models in background."""
     try:
-        # Check if index exists in session
-        if _index_name is None:
-            # Generate a session-based index name
-            session_id = str(uuid.uuid4())[:8]
-            index_name = f"docs-{session_id}"
-            
-            index_start = time.time()
-            print(f"\n📊 Creating new Pinecone index: {index_name}")
-            
-            pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-            if index_name not in pc.list_indexes():
-                index_name = create_pinecone_index(index_name)
-                print(f"📊 New index created: {index_name}")
-            else:
-                print(f"📊 Using existing index: {index_name}")
-            
-            # Store in session
-            _index_name = index_name
-            print(f"📊 Index setup complete: {time.time() - index_start:.2f} seconds")
-        else:
-            index_name=_index_name
-            print(f"📊 Reusing existing index from session: {index_name}")
+        # Initialize LLM
+        print("\n🤖 Initializing LLM model...")
+        llm_start = time.time()
+        _llm = get_cached_llm()
+        print(f"✅ LLM initialized: {time.time() - llm_start:.2f} seconds")
         
-        return index_name
+        # Initialize embeddings
+        print("\n📊 Initializing embeddings model...")
+        embed_start = time.time()
+        _embeddings = create_embeddings()
+        print(f"✅ Embeddings initialized: {time.time() - embed_start:.2f} seconds")
+        
+        print("\n✨ All models initialized successfully")
     except Exception as e:
-        print(f"⚠️ Error in index setup: {str(e)}")
-        raise e
+        print(f"⚠️ Error initializing models: {str(e)}")
 
 @app.route('/')
 def index():
     """Render chat UI."""
+    # Initialize index and models in background
+    threading.Thread(target=lambda: set_index_name(get_or_create_index(get_index_name()))).start()
+    threading.Thread(target=initialize_models).start()
     return render_template('chat.html')
 
 @app.route('/upload', methods=['POST'])
@@ -149,16 +153,18 @@ def upload():
         all_batches = [_chunks[i:i + BATCH_SIZE] for i in range(0, len(_chunks), BATCH_SIZE)]
         print(f"📦 Created {len(all_batches)} batch(es) of maximum size {BATCH_SIZE}")
         
-        # Initialize embeddings
+        # Get existing embeddings model
         embed_start = time.time()
-        print("\n🔤 Initializing embeddings model...")
+        print("\n🔤 Getting embeddings model...")
         _embeddings = create_embeddings()
-        print(f"🔤 Embeddings model initialized: {time.time() - embed_start:.2f} seconds")
+        print(f"🔤 Got embeddings model: {time.time() - embed_start:.2f} seconds")
         
-        # Get or create Pinecone index (reuse existing if available)
+        # Get existing index
         index_start = time.time()
-        index_name = get_or_create_index()
-        print(f"📊 Index operation took: {time.time() - index_start:.2f} seconds")
+        index_name = get_index_name()
+        if not index_name:
+            return jsonify({"error": "Index not initialized yet. Please wait a moment and try again."}), 503
+        print(f"📊 Got index: {time.time() - index_start:.2f} seconds")
         
         # Vector store creation phase
         vector_store_start = time.time()
@@ -182,7 +188,7 @@ def upload():
             print(f"  ✅ Batch {i+1} complete: {time.time() - batch_start:.2f} seconds")
         
         vector_store_time = time.time() - vector_store_start
-        print(f"💾 Vector store creation complete: {vector_store_time:.2f} seconds")
+        print(f"💾 Vector store creation complete: {vector_store_time:.2f} seconds\n")
         
         total_time = time.time() - request_start_time
         print(f"\n✨ Total upload request processing time: {total_time:.2f} seconds")
@@ -246,41 +252,56 @@ def chatbot():
 
 @app.route('/reset', methods=['POST'])
 def reset():
-    """Deletes Pinecone indexes and resets server-side resources."""
-    global _documents, _chunks, _embeddings, _vector_store, _llm, _index_name, _document_metadata
+    """Clears uploaded documents from the library."""
+    global _documents, _chunks, _embeddings, _vector_store, _llm, _document_metadata
     
     try:
-        # Delete Pinecone index if it exists
-        if _index_name:
-            try:
-                pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
-                pc.delete_index(_index_name)
-                print(f"🗑️ Deleted Pinecone index: {_index_name}")
-            except Exception as e:
-                print(f"⚠️ Error deleting Pinecone index: {str(e)}")
-        
-        # Reset all global variables
+        # Reset document-related variables
         _documents = None
         _chunks = None
         _embeddings = None
         _vector_store = None
-        _index_name = None
         _document_metadata = []
-        
-        # Explicitly reset LLM to ensure fresh initialization
-        _llm = None
         
         # Force garbage collection
         import gc
         gc.collect()
         
-        print("✨ All resources reset successfully")
+        print("✨ Document library cleared successfully")
         return jsonify({
-            "message": "All resources reset successfully",
+            "message": "Document library cleared successfully",
             "status": "success"
         })
     except Exception as e:
-        print(f"❌ Error during reset: {str(e)}")
+        print(f"❌ Error during document reset: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/reset_session', methods=['POST'])
+def reset_session():
+    """Deletes Pinecone index and resets the entire session."""
+    try:
+        # Delete Pinecone index if it exists
+        index_name = get_index_name()
+        if index_name:
+            try:
+                pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
+                pc.delete_index(index_name)
+                print(f"🗑️ Deleted Pinecone index: {index_name}")
+                # Clear the index name from config
+                set_index_name(None)
+            except Exception as e:
+                print(f"⚠️ Error deleting Pinecone index: {str(e)}")
+        
+        # Call the regular reset to clear documents
+        reset()
+        
+        print("✨ Session reset successfully")
+        return jsonify({
+            "message": "Session reset successfully",
+            "status": "success"
+        })
+    except Exception as e:
+        print(f"❌ Error during session reset: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
