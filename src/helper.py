@@ -13,6 +13,11 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 from src.prompt import system_prompt, title_generation_prompt
 from src.model_singletons import get_cached_llm, get_cached_embeddings
 import re
+import torch
+import gc
+from concurrent.futures import ThreadPoolExecutor
+from typing import List, Dict, Any
+import numpy as np
 
 def load_documents(file_path):
     """Loads a PDF document."""
@@ -44,9 +49,9 @@ def process_file_bytes(file_bytes, filename):
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
         initial_chunks = text_splitter.split_documents(documents)
         
-        # Generate document title
+        # Load LLM once and reuse
         llm = load_llm()
-        document_title = generate_document_title(initial_chunks[:2], llm)
+        document_title = generate_document_title(initial_chunks[:2], llm=llm)  # Explicitly pass llm
         
         # Add metadata to documents
         for doc in documents:
@@ -60,6 +65,9 @@ def process_file_bytes(file_bytes, filename):
             "page_count": len(documents),
             "timestamp": int(os.path.getmtime(temp_path)) if os.path.exists(temp_path) else None
         }
+        
+        # Force garbage collection after processing large file
+        gc.collect()
             
         return documents, file_metadata
     finally:
@@ -68,17 +76,89 @@ def process_file_bytes(file_bytes, filename):
             os.remove(temp_path)
 
 def create_chunk(documents):
-    """Splits documents into smaller chunks."""
+    """Splits documents into smaller chunks with a maximum limit.
+    
+    Args:
+        documents: List of documents to split
+        
+    Returns:
+        List of chunks, limited to MAX_CHUNKS per document to control memory usage
+    """
+    MAX_CHUNKS = 300  # Maximum chunks per document to control memory and API usage
+    
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-    chunks = text_splitter.split_documents(documents)
-    return chunks
+    all_chunks = []
+    
+    for doc in documents:
+        # Split individual document
+        doc_chunks = text_splitter.split_documents([doc])
+        
+        # Limit chunks for this document
+        if len(doc_chunks) > MAX_CHUNKS:
+            print(f"Warning: Document '{doc.metadata.get('source', 'unknown')}' exceeded chunk limit. "
+                  f"Using first {MAX_CHUNKS} chunks out of {len(doc_chunks)}")
+            doc_chunks = doc_chunks[:MAX_CHUNKS]
+        
+        all_chunks.extend(doc_chunks)
+    
+    print(f"Total chunks after limiting: {len(all_chunks)}")
+    
+    # Force garbage collection after creating chunks
+    gc.collect()
+    
+    return all_chunks
 
-def create_embeddings():
-    """Generates embeddings for document chunks."""
+def embed_chunk(chunk) -> Dict[str, Any]:
+    """Generates embeddings for a single chunk.
+    
+    Args:
+        chunk: Document chunk to embed
+        
+    Returns:
+        Dictionary containing the chunk's text, metadata, and embedding
+    """
     try:
-        return get_cached_embeddings()
+        with torch.no_grad():
+            embeddings_model = get_cached_embeddings()
+            # Get the text content from the chunk
+            text = chunk.page_content if hasattr(chunk, 'page_content') else str(chunk)
+            # Generate embedding
+            embedding = embeddings_model.embed_query(text)
+            
+            return {
+                'text': text,
+                'metadata': chunk.metadata if hasattr(chunk, 'metadata') else {},
+                'embedding': embedding
+            }
     except Exception as e:
-        print(f"Error creating embeddings: {str(e)}")
+        print(f"Error embedding chunk: {str(e)}")
+        raise e
+
+def create_embeddings_parallel(chunks: List, max_workers: int = None) -> List[Dict[str, Any]]:
+    """Generates embeddings for chunks in parallel using ThreadPoolExecutor.
+    
+    Args:
+        chunks: List of document chunks to embed
+        max_workers: Maximum number of worker threads (None for default based on CPU count)
+        
+    Returns:
+        List of dictionaries containing text, metadata, and embeddings
+    """
+    print(f"Generating embeddings for {len(chunks)} chunks in parallel...")
+    
+    try:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Map the embedding function across all chunks in parallel
+            embedded_chunks = list(executor.map(embed_chunk, chunks))
+            
+        # Force garbage collection after parallel embedding
+        gc.collect()
+        
+        print(f"Successfully generated {len(embedded_chunks)} embeddings")
+        return embedded_chunks
+        
+    except Exception as e:
+        print(f"Error in parallel embedding generation: {str(e)}")
         raise e
 
 def create_pinecone_index(index_name):
@@ -98,15 +178,53 @@ def create_pinecone_index(index_name):
     return index_name
 
 def create_pinecone_vector_store(index_name, embeddings, chunks):
-    """Stores document embeddings in Pinecone and returns a retriever."""
-    vector_store = PineconeVectorStore.from_documents(
-        documents=chunks,
-        embedding=embeddings,
-        index_name=index_name,
-        pinecone_api_key=os.getenv("PINECONE_API_KEY")
-    )
-    retriever = vector_store.as_retriever(search_kwargs={"k": 3}, search_type="similarity")
-    return retriever
+    """Stores document embeddings in Pinecone and returns a retriever.
+    
+    Uses parallel processing for embedding generation and torch.no_grad() 
+    to prevent memory accumulation.
+    """
+    try:
+        # Generate embeddings in parallel
+        embedded_chunks = create_embeddings_parallel(chunks)
+        
+        # Prepare data for Pinecone
+        vectors = []
+        for i, chunk_data in enumerate(embedded_chunks):
+            vectors.append({
+                'id': f'chunk_{i}',
+                'values': chunk_data['embedding'],
+                'metadata': {
+                    **chunk_data['metadata'],
+                    'text': chunk_data['text']
+                }
+            })
+        
+        # Initialize Pinecone and upsert vectors
+        pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+        index = pc.Index(index_name)
+        
+        # Upsert in batches to avoid overwhelming the API
+        batch_size = 100
+        for i in range(0, len(vectors), batch_size):
+            batch = vectors[i:i + batch_size]
+            index.upsert(vectors=batch)
+        
+        # Create retriever
+        vector_store = PineconeVectorStore(
+            index_name=index_name,
+            embedding=embeddings,
+            pinecone_api_key=os.getenv("PINECONE_API_KEY")
+        )
+        retriever = vector_store.as_retriever(search_kwargs={"k": 3}, search_type="similarity")
+        
+        # Force garbage collection after embedding operations
+        gc.collect()
+        
+        return retriever
+        
+    except Exception as e:
+        print(f"Error creating vector store: {str(e)}")
+        raise e
 
 def load_llm():
     """Loads the Google Gemini AI model."""
@@ -129,12 +247,12 @@ def create_rag_chain(llm, retriever, system_prompt, user_input):
     response = rag_chain.invoke({"input": user_input})
     return response["answer"]
 
-def generate_document_title(chunks, llm=None):
+def generate_document_title(chunks, llm):
     """Generates a title for a document using an LLM based on the first few chunks.
     
     Args:
         chunks: List of document chunks, with the first few representing the document intro
-        llm: The LLM to use (if None, will create a new instance)
+        llm: The LLM instance to use (required) - reuses existing instance to avoid reloading
         
     Returns:
         A generated title for the document
@@ -142,9 +260,8 @@ def generate_document_title(chunks, llm=None):
     if not chunks or len(chunks) == 0:
         return "Untitled Document"
     
-    # Initialize LLM if not provided
     if llm is None:
-        llm = load_llm()
+        raise ValueError("LLM instance must be provided to generate_document_title")
     
     try:
         # Take content from first 2 chunks (or fewer if not available)
@@ -209,3 +326,15 @@ def clean_title(title):
         title = title[:47] + "..."
         
     return title.strip()
+
+def create_embeddings():
+    """Generates embeddings for document chunks.
+    
+    This function maintains backward compatibility while using the new parallel implementation internally.
+    Returns the embeddings model instance.
+    """
+    try:
+        return get_cached_embeddings()
+    except Exception as e:
+        print(f"Error creating embeddings: {str(e)}")
+        raise e
