@@ -11,6 +11,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from src.prompt import system_prompt, title_generation_prompt
+from src.model_singletons import get_cached_llm, get_cached_embeddings
 import re
 
 def load_documents(file_path):
@@ -75,12 +76,7 @@ def create_chunk(documents):
 def create_embeddings():
     """Generates embeddings for document chunks."""
     try:
-        embeddings = HuggingFaceEmbeddings(
-            model_name="BAAI/bge-base-en",
-            model_kwargs={"device": "cpu"},
-            encode_kwargs={"normalize_embeddings": True, "batch_size": 8}
-        )
-        return embeddings
+        return get_cached_embeddings()
     except Exception as e:
         print(f"Error creating embeddings: {str(e)}")
         raise e
@@ -114,12 +110,7 @@ def create_pinecone_vector_store(index_name, embeddings, chunks):
 
 def load_llm():
     """Loads the Google Gemini AI model."""
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
-        google_api_key=os.getenv("GOOGLE_GEMINI_KEY"),
-        convert_system_message_to_human=True
-    )
-    return llm
+    return get_cached_llm()
 
 def create_rag_chain(llm, retriever, system_prompt, user_input):
     """Creates the RAG pipeline to process user queries."""
