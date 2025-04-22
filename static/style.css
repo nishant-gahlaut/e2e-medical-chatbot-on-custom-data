@@ -150,7 +150,7 @@ html, body {
 }
 
 .document-library.expanded {
-    max-height: 300px !important; /* Force expanded state with !important */
+    max-height: 300px; /* This will be overridden by JavaScript */
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
     border: 1px solid var(--accent-color);
     overflow-y: auto; /* Enable scrolling when expanded */
@@ -209,6 +209,12 @@ html, body {
     cursor: pointer;
     transition: all 0.2s ease;
     border-left: 3px solid transparent;
+    margin-bottom: 5px;
+    position: relative;
+}
+
+.document-item:last-child {
+    margin-bottom: 0;
 }
 
 .document-item:hover {
@@ -226,16 +232,30 @@ html, body {
     margin-right: 10px;
     color: var(--accent-color);
     font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.document-info {
+    flex: 1;
+    min-width: 0; /* Enable text truncation */
+    display: flex;
+    flex-direction: column;
 }
 
 .document-title {
-    flex: 1;
     font-size: 0.85rem;
     color: var(--text-color-primary);
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.document-filename {
+    font-size: 0.75rem;
+    color: var(--text-color-secondary);
     white-space: nowrap;
-    transition: all 0.2s ease;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .document-item:hover .document-title {
@@ -550,7 +570,7 @@ html, body {
     position: absolute;
     left: -20px;
     top: -45px;
-    background-color: #1a1a1a;
+    background-color: var(--bg-color-dark);
     color: white;
     padding: 8px 12px;
     border-radius: 4px;
@@ -564,6 +584,14 @@ html, body {
     visibility: hidden;
     transition: opacity 0.2s ease, visibility 0.2s ease;
     z-index: 1000;
+}
+
+.document-tooltip strong {
+    color: var(--accent-color);
+}
+
+.document-tooltip small {
+    color: var(--text-color-secondary);
 }
 
 .document-item:hover .document-tooltip {

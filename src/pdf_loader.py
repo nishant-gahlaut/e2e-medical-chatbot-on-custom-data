@@ -6,19 +6,11 @@ class PyPDFLoader:
     """Custom implementation of PDF loader without langchain-community dependency."""
     
     def __init__(self, file_path: str):
-        """Initialize the PDF loader.
-        
-        Args:
-            file_path: Path to the PDF file
-        """
+        """Initialize the PDF loader."""
         self.file_path = file_path
 
     def load(self) -> List[Document]:
-        """Load and parse the PDF file.
-        
-        Returns:
-            List of Document objects, one per page with extracted text
-        """
+        """Load and parse the PDF file."""
         reader = PdfReader(self.file_path)
         documents = []
         

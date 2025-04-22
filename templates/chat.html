@@ -279,7 +279,7 @@
             // Activate library section
             documentLibrary.classList.add('active');
             
-            // Initially expand the library to show documents
+            // Always expand the library when new documents are added
             documentLibrary.classList.add('expanded');
             
             // Update the chevron icon to match expanded state
@@ -303,8 +303,13 @@
             // Clear existing list
             documentList.innerHTML = '';
             
+            // Sort documents by timestamp (newest first)
+            const sortedDocuments = [...documents].sort((a, b) => {
+                return (b.timestamp || 0) - (a.timestamp || 0);
+            });
+            
             // Add document items
-            documents.forEach(doc => {
+            sortedDocuments.forEach(doc => {
                 const docItem = document.createElement('div');
                 docItem.className = 'document-item';
                 docItem.setAttribute('data-filename', doc.filename);
@@ -320,8 +325,14 @@
                 
                 docItem.innerHTML = `
                     <i class="${iconClass} document-icon"></i>
-                    <span class="document-title">${doc.title || 'Untitled Document'}</span>
-                    <div class="document-tooltip">${doc.title || 'Untitled Document'}</div>
+                    <div class="document-info">
+                        <span class="document-title">${doc.title || 'Untitled Document'}</span>
+                        <span class="document-filename">${doc.filename}</span>
+                    </div>
+                    <div class="document-tooltip">
+                        <strong>${doc.title || 'Untitled Document'}</strong><br>
+                        <small>${doc.filename}</small>
+                    </div>
                 `;
                 
                 // Add click handler
@@ -331,12 +342,15 @@
                         item.classList.remove('active');
                     });
                     docItem.classList.add('active');
-                    
-                    // Could add functionality here to filter queries to this document
                 });
                 
                 documentList.appendChild(docItem);
             });
+            
+            // Adjust max-height based on content
+            const totalHeight = sortedDocuments.length * 50; // Approximate height per item
+            const maxHeight = Math.min(300, Math.max(100, totalHeight + 60)); // Add padding
+            documentLibrary.style.maxHeight = documentLibrary.classList.contains('expanded') ? `${maxHeight}px` : '40px';
         }
         
         // Direct toggle library function

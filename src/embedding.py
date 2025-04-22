@@ -15,13 +15,7 @@ class CohereEmbeddings(Embeddings):
         model_name: str = "embed-multilingual-v3.0",
         input_type: str = "search_document"
     ):
-        """Initialize Cohere embeddings.
-        
-        Args:
-            cohere_api_key: Cohere API key
-            model_name: Name of the embedding model to use
-            input_type: Type of input ('search_document' or 'search_query')
-        """
+        """Initialize Cohere embeddings."""
         if cohere_api_key is None:
             cohere_api_key = os.getenv("COHERE_API_KEY")
             if not cohere_api_key:
@@ -35,15 +29,7 @@ class CohereEmbeddings(Embeddings):
         self.input_type = input_type
     
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
-        """Generate embeddings for a list of documents.
-        
-        Args:
-            texts: List of texts to embed
-            
-        Returns:
-            List of embeddings, one for each text
-        """
-        # Cohere has a limit of 96 texts per batch
+        """Generate embeddings for a list of documents."""
         batch_size = 96
         all_embeddings = []
         
@@ -59,31 +45,16 @@ class CohereEmbeddings(Embeddings):
         return all_embeddings
     
     def embed_query(self, text: str) -> List[float]:
-        """Generate embedding for a single query text.
-        
-        Args:
-            text: Text to embed
-            
-        Returns:
-            Embedding for the text
-        """
+        """Generate embedding for a single query text."""
         response = self.client.embed(
             texts=[text],
             model=self.model_name,
-            input_type="search_query"  # Always use search_query for queries
+            input_type="search_query"
         )
         return response.embeddings[0]
 
 def get_embeddings(api_key: Optional[str] = None) -> CohereEmbeddings:
-    """
-    Get Cohere cloud embeddings client.
-    
-    Args:
-        api_key: Optional Cohere API key. If not provided, will look for COHERE_API_KEY in environment.
-        
-    Returns:
-        CohereEmbeddings instance configured for the multilingual-v3 model
-    """
+    """Get Cohere cloud embeddings client."""
     return CohereEmbeddings(
         cohere_api_key=api_key,
         model_name="embed-multilingual-v3.0",

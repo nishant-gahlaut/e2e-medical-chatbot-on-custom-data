@@ -38,7 +38,7 @@ def get_cached_embeddings() -> CohereEmbeddings:
     return _embeddings_instance
 
 def clear_cached_models() -> None:
-    """Clears all cached model instances. Useful for testing or when environment variables change."""
+    """Clears all cached model instances."""
     global _llm_instance, _embeddings_instance
     _llm_instance = None
     _embeddings_instance = None 
