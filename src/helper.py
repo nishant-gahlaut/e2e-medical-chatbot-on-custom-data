@@ -1,10 +1,6 @@
-from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
-import os
-import tempfile
-from pinecone import Pinecone, ServerlessSpec
 from dotenv import load_dotenv
+from pinecone import Pinecone, ServerlessSpec
 from langchain_pinecone import PineconeVectorStore
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
@@ -12,6 +8,7 @@ from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from src.prompt import system_prompt, title_generation_prompt
 from src.model_singletons import get_cached_llm, get_cached_embeddings
+from src.pdf_loader import PyPDFLoader
 import re
 import torch
 import gc
@@ -23,6 +20,32 @@ import asyncio
 from concurrent.futures import Future
 from threading import Thread
 import uuid
+import os
+import tempfile
+import psutil
+import logging
+
+def log_memory_usage(step_name: str) -> None:
+    """Helper function to log memory usage at a given step.
+    
+    Args:
+        step_name: Name of the step being measured
+    """
+    process = psutil.Process()
+    memory_info = process.memory_info()
+    
+    # Convert to MB for readability
+    rss_mb = memory_info.rss / 1024 / 1024
+    vms_mb = memory_info.vms / 1024 / 1024
+    
+    # Get GPU memory if available
+    gpu_memory = ""
+    if torch.cuda.is_available():
+        gpu_memory = f", GPU Memory: {torch.cuda.memory_allocated() / 1024 / 1024:.2f}MB"
+    
+    print(f"🔍 Memory Usage at {step_name}:")
+    print(f"   ↳ RSS: {rss_mb:.2f}MB")
+    print(f"   ↳ VMS: {vms_mb:.2f}MB{gpu_memory}")
 
 def log_time(start_time: float, step_name: str) -> float:
     """Helper function to log time taken for each step.
@@ -241,11 +264,13 @@ def embed_chunk(chunk) -> Dict[str, Any]:
     """
     try:
         with torch.no_grad():
+            log_memory_usage("Before embedding single chunk")
             embeddings_model = get_cached_embeddings()
             # Get the text content from the chunk
             text = chunk.page_content if hasattr(chunk, 'page_content') else str(chunk)
             # Generate embedding
             embedding = embeddings_model.embed_query(text)
+            log_memory_usage("After embedding single chunk")
             
             return {
                 'text': text,
@@ -273,18 +298,25 @@ def create_embeddings_parallel(chunks: List, max_workers: int = None) -> List[Di
     try:
         # Initialize embeddings model
         model_start = time.time()
+        log_memory_usage("Before embeddings model initialization")
         _ = get_cached_embeddings()  # Warm up the model
+        log_memory_usage("After embeddings model initialization")
         log_time(model_start, "Embeddings model initialization")
         
         # Generate embeddings in parallel
         embed_start = time.time()
+        log_memory_usage("Before parallel embedding generation")
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             embedded_chunks = list(executor.map(embed_chunk, chunks))
+        log_memory_usage("After parallel embedding generation")
         log_time(embed_start, "Parallel embedding generation")
         
         # Garbage collection
         gc_start = time.time()
+        log_memory_usage("Before garbage collection")
         gc.collect()
+        torch.cuda.empty_cache() if torch.cuda.is_available() else None
+        log_memory_usage("After garbage collection")
         log_time(gc_start, "Garbage collection")
         
         total_time = time.time() - start_time
@@ -301,15 +333,20 @@ def create_embeddings_parallel(chunks: List, max_workers: int = None) -> List[Di
 def create_pinecone_index(index_name):
     """Creates a Pinecone index if it does not exist."""
     load_dotenv()
+    # Initialize pinecone
     pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
-    index_name = index_name
     
-    if index_name not in pc.list_indexes():
+    # Check if index exists
+    if index_name not in pc.list_indexes().names():
+        # Create index
         pc.create_index(
             name=index_name,
-            dimension=768,
+            dimension=1024,  # Using 768 dimensions as specified
             metric="cosine",
-            spec=ServerlessSpec(cloud="aws", region="us-east-1")
+            spec=ServerlessSpec(
+                cloud='aws',
+                region='us-east-1'
+            )
         )
     
     return index_name
@@ -439,7 +476,10 @@ def create_embeddings():
     Returns the embeddings model instance.
     """
     try:
-        return get_cached_embeddings()
+        log_memory_usage("Before creating embeddings model")
+        embeddings = get_cached_embeddings()
+        log_memory_usage("After creating embeddings model")
+        return embeddings
     except Exception as e:
         print(f"Error creating embeddings: {str(e)}")
         raise e
@@ -464,7 +504,7 @@ def get_or_create_index(index_name=None):
         print(f"\n📊 Creating new Pinecone index: {index_name}")
         
         pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-        if index_name not in pc.list_indexes():
+        if index_name not in pc.list_indexes().names():
             index_name = create_pinecone_index(index_name)
             print(f"📊 New index created: {index_name}")
         else:

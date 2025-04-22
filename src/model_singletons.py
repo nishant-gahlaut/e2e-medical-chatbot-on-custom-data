@@ -2,11 +2,11 @@ from functools import lru_cache
 import os
 from typing import Optional
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from src.embedding import get_embeddings, CohereEmbeddings
 
 # Global variables to store singleton instances
 _llm_instance: Optional[ChatGoogleGenerativeAI] = None
-_embeddings_instance: Optional[HuggingFaceEmbeddings] = None
+_embeddings_instance: Optional[CohereEmbeddings] = None
 
 def get_cached_llm() -> ChatGoogleGenerativeAI:
     """Returns a cached instance of the Google Gemini AI model."""
@@ -28,16 +28,12 @@ def get_cached_llm() -> ChatGoogleGenerativeAI:
     
     return _llm_instance
 
-def get_cached_embeddings() -> HuggingFaceEmbeddings:
-    """Returns a cached instance of the HuggingFace embeddings model."""
+def get_cached_embeddings() -> CohereEmbeddings:
+    """Returns a cached instance of the Cohere embeddings model."""
     global _embeddings_instance
     
     if _embeddings_instance is None:
-        _embeddings_instance = HuggingFaceEmbeddings(
-            model_name="BAAI/bge-base-en",
-            model_kwargs={"device": "cpu"},
-            encode_kwargs={"normalize_embeddings": True, "batch_size": 8}
-        )
+        _embeddings_instance = get_embeddings()
     
     return _embeddings_instance
 

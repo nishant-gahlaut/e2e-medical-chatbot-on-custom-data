@@ -1,10 +1,8 @@
 flask==3.1.0
 python-dotenv==1.1.0
-pinecone_client==2.2.4
-pinecone==6.0.2
-langchain==0.3.23
-langchain-community==0.3.21
+pinecone-client==2.2.4
 langchain-pinecone==0.2.5
+langchain==0.3.23
 langchain-google-genai==2.0.10
 google-generativeai==0.8.5
 pypdf==5.4.0
@@ -14,3 +12,6 @@ transformers==4.51.3
 torch==2.6.0
 numpy==2.2.5
 gunicorn==23.0.0
+cohere==5.1.8
+langchain-core==0.3.54
+psutil==7.0.0

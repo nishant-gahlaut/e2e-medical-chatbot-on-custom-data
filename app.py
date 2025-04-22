@@ -8,20 +8,60 @@ import shutil
 from src.helper import (
     load_documents, process_file_bytes, create_chunk, create_embeddings,
     create_pinecone_index, create_pinecone_vector_store, create_rag_chain,
-    get_or_create_index
+    get_or_create_index, log_memory_usage
 )
+import psutil
+import torch
 from src.prompt import system_prompt
-from pinecone import Pinecone
+from pinecone import Pinecone, ServerlessSpec
 from langchain_pinecone import PineconeVectorStore
 import uuid
-from src.model_singletons import get_cached_llm
+from src.model_singletons import get_cached_llm, get_cached_embeddings
+import gc
 
 load_dotenv()
+
+def log_app_memory(step_name: str):
+    """Log memory usage with additional process information."""
+    process = psutil.Process()
+    
+    # CPU Usage
+    cpu_percent = process.cpu_percent()
+    
+    # Memory details
+    memory_info = process.memory_info()
+    rss_mb = memory_info.rss / 1024 / 1024
+    vms_mb = memory_info.vms / 1024 / 1024
+    
+    # System memory
+    system_memory = psutil.virtual_memory()
+    system_memory_used_percent = system_memory.percent
+    
+    print(f"\n📊 System Resources at {step_name}:")
+    print(f"   ↳ Process RSS Memory: {rss_mb:.2f}MB")
+    print(f"   ↳ Process VMS Memory: {vms_mb:.2f}MB")
+    print(f"   ↳ CPU Usage: {cpu_percent}%")
+    print(f"   ↳ System Memory Usage: {system_memory_used_percent}%")
+    
+    # GPU memory if available
+    if torch.cuda.is_available():
+        gpu_memory_allocated = torch.cuda.memory_allocated() / 1024 / 1024
+        gpu_memory_reserved = torch.cuda.memory_reserved() / 1024 / 1024
+        print(f"   ↳ GPU Memory Allocated: {gpu_memory_allocated:.2f}MB")
+        print(f"   ↳ GPU Memory Reserved: {gpu_memory_reserved:.2f}MB")
+
+# Log initial memory usage when app starts
+print("\n🚀 Starting Flask application...")
+log_app_memory("Application Startup")
 
 app = Flask(__name__, 
             static_url_path='', 
             static_folder='static',
             template_folder='templates')
+
+# Log memory after Flask app creation
+log_app_memory("After Flask App Creation")
+
 # Set a secret key for session management
 app.secret_key = os.urandom(24)
 UPLOAD_FOLDER = "uploads/"
@@ -71,9 +111,16 @@ def initialize_models():
 @app.route('/')
 def index():
     """Render chat UI."""
+    # Log memory before initialization
+    log_app_memory("Before / Endpoint Processing")
+    
     # Initialize index and models in background
     threading.Thread(target=lambda: set_index_name(get_or_create_index(get_index_name()))).start()
     threading.Thread(target=initialize_models).start()
+    
+    # Log memory after starting initialization threads
+    log_app_memory("After Starting Initialization Threads")
+    
     return render_template('chat.html')
 
 @app.route('/upload', methods=['POST'])
@@ -83,6 +130,7 @@ def upload():
     
     request_start_time = time.time()
     print("\n🔄 Starting file upload request processing...")
+    log_app_memory("Start of Upload Request")
     
     if 'files' not in request.files:
         return jsonify({"error": "No files part"}), 400
@@ -103,6 +151,7 @@ def upload():
         # File Processing Phase
         file_processing_start = time.time()
         print("\n📁 Starting file processing phase...")
+        log_app_memory("Before File Processing")
         
         for file in files:
             if file.filename:
@@ -132,6 +181,7 @@ def upload():
                 processed_files.append(file.filename)
                 
                 print(f"  ✅ Total time for {file.filename}: {time.time() - file_start_time:.2f} seconds")
+                log_app_memory(f"After Processing {file.filename}")
         
         file_processing_time = time.time() - file_processing_start
         print(f"📁 File processing phase complete: {file_processing_time:.2f} seconds")
@@ -139,14 +189,17 @@ def upload():
         # Store document metadata
         _document_metadata = all_metadata
         print(f"📊 Documents processed: {len(_document_metadata)}")
+        log_app_memory("After All File Processing")
         
         # Chunking Phase
         chunk_start = time.time()
         print("\n🔪 Starting chunking phase...")
+        log_app_memory("Before Chunking")
         _documents = all_documents
         _chunks = create_chunk(_documents)
         chunk_time = time.time() - chunk_start
         print(f"🔪 Chunking complete: {chunk_time:.2f} seconds, {len(_chunks)} chunks created")
+        log_app_memory("After Chunking")
         
         # Process in smaller batches if many chunks
         BATCH_SIZE = 50
@@ -156,8 +209,10 @@ def upload():
         # Get existing embeddings model
         embed_start = time.time()
         print("\n🔤 Getting embeddings model...")
+        log_app_memory("Before Loading Embeddings Model")
         _embeddings = create_embeddings()
         print(f"🔤 Got embeddings model: {time.time() - embed_start:.2f} seconds")
+        log_app_memory("After Loading Embeddings Model")
         
         # Get existing index
         index_start = time.time()
@@ -169,10 +224,12 @@ def upload():
         # Vector store creation phase
         vector_store_start = time.time()
         print("\n💾 Starting vector store creation...")
+        log_app_memory("Before Vector Store Creation")
         
         for i, batch in enumerate(all_batches):
             batch_start = time.time()
             print(f"\n  Processing batch {i+1}/{len(all_batches)} ({len(batch)} chunks)")
+            log_app_memory(f"Before Processing Batch {i+1}")
             
             if i == 0:
                 # First batch creates the store
@@ -186,9 +243,16 @@ def upload():
                     pinecone_api_key=os.getenv("PINECONE_API_KEY")
                 )
             print(f"  ✅ Batch {i+1} complete: {time.time() - batch_start:.2f} seconds")
+            log_app_memory(f"After Processing Batch {i+1}")
         
         vector_store_time = time.time() - vector_store_start
         print(f"💾 Vector store creation complete: {vector_store_time:.2f} seconds\n")
+        log_app_memory("After Vector Store Creation")
+        
+        # Force garbage collection
+        gc.collect()
+        torch.cuda.empty_cache() if torch.cuda.is_available() else None
+        log_app_memory("After Garbage Collection")
         
         total_time = time.time() - request_start_time
         print(f"\n✨ Total upload request processing time: {total_time:.2f} seconds")
@@ -209,6 +273,7 @@ def upload():
         })
     except Exception as e:
         print(f"❌ Error processing files: {str(e)}")
+        log_app_memory("After Error")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/documents', methods=['GET'])
@@ -242,6 +307,10 @@ def chatbot():
         # Initialize LLM if not already done
         if _llm is None:
             _llm = get_cached_llm()
+            
+        # Ensure we're using the same embeddings instance
+        if _embeddings is None:
+            _embeddings = get_cached_embeddings()  # Will use Cohere by default
         
         # Use the stored components to get a response
         response = create_rag_chain(_llm, _vector_store, system_prompt, query)
@@ -264,7 +333,6 @@ def reset():
         _document_metadata = []
         
         # Force garbage collection
-        import gc
         gc.collect()
         
         print("✨ Document library cleared successfully")
