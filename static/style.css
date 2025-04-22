@@ -28,7 +28,7 @@
 
 html, body {
     height: 100%; /* Ensure body takes full height */
-    overflow: hidden; /* Prevent body scrollbars */
+    overflow: hidden; /* <<< RE-ADDED this */
     font-family: var(--font-family);
     background-color: var(--bg-color-darkest);
     color: var(--text-color-primary);
@@ -50,7 +50,8 @@ html, body {
     display: flex;
     flex-direction: column; /* Stack top section and reset button */
     padding: 20px;
-    position: relative; /* For absolute positioning of reset button */
+    height: 100vh;
+    overflow-y: auto;
 }
 
 .sidebar-top {
@@ -343,15 +344,12 @@ html, body {
 
 /* Reset Button at the Bottom */
 .sidebar .btn-reset {
-    position: absolute;
-    bottom: 110px; /* Move up to make room for delete and reset session buttons */
-    left: 20px;
-    right: 20px; /* Stretch across padding */
-    width: calc(100% - 40px); /* Calculate width based on padding */
     background-color: var(--bg-color-light);
     color: var(--text-color-secondary);
     border: 1px solid var(--border-color-light);
     transition: all 0.2s ease;
+    width: 100%;
+    margin-top: auto;
 }
 .sidebar .btn-reset:hover {
     background-color: #5b5b7c; /* Less alarming color than error-red */
@@ -363,15 +361,12 @@ html, body {
 
 /* Delete Button at the Bottom */
 .sidebar .btn-delete {
-    position: absolute;
-    bottom: 65px; /* Move up to make room for reset session button */
-    left: 20px;
-    right: 20px; /* Stretch across padding */
-    width: calc(100% - 40px); /* Calculate width based on padding */
     background-color: var(--bg-color-light);
     color: var(--text-color-secondary);
     border: 1px solid var(--border-color-light);
     transition: all 0.2s ease;
+    width: 100%;
+    margin-top: 10px;
 }
 .sidebar .btn-delete:hover {
     background-color: var(--error-color); /* Red color on hover for warning */
@@ -383,16 +378,12 @@ html, body {
 
 /* Reset Session Button at the Bottom */
 .sidebar .btn-danger {
-    position: absolute;
-    bottom: 20px;
-    left: 20px;
-    right: 20px;
-    width: calc(100% - 40px);
     background-color: #dc3545;
     color: #ffffff;
     border: 1px solid var(--border-color-light);
     transition: all 0.2s ease;
-    margin-top: 0; /* Remove margin since we're using absolute positioning */
+    width: 100%;
+    margin-top: 10px;
 }
 
 .sidebar .btn-danger:hover {
@@ -446,7 +437,7 @@ html, body {
 /* Chat Messages Container */
 .chat-container {
     flex-grow: 1; /* Take available vertical space */
-    overflow-y: auto; /* Enable vertical scrolling */
+    overflow-y: auto;
     padding: 20px 40px; /* Padding for messages */
     display: flex;
     flex-direction: column;
@@ -656,4 +647,131 @@ html, body {
 .document-list::-webkit-scrollbar-thumb {
     background-color: var(--accent-color);
     border-radius: 3px;
+}
+
+/* --- Hamburger Menu Button (Initially Hidden) --- */
+.hamburger-menu {
+    display: none; /* Hidden by default on larger screens */
+    position: fixed; /* Keep it visible even when scrolling */
+    top: 15px;
+    left: 15px;
+    z-index: 1001; /* Ensure it's above the sidebar */
+    background: var(--bg-color-light);
+    color: var(--text-color-primary);
+    border: none;
+    padding: 10px 12px;
+    border-radius: var(--border-radius-small);
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: background-color 0.2s ease;
+}
+
+.hamburger-menu:hover {
+    background: var(--bg-color-hover);
+}
+
+
+/* --- Responsive Design (Mobile First Approach Adjustments) --- */
+
+/* Styles for screens smaller than 768px (typical mobile breakpoint) */
+@media (max-width: 768px) {
+    .app-container {
+        flex-direction: column; /* Stack sidebar and chat area vertically if needed */
+    }
+
+    .sidebar {
+        position: fixed; /* Mobile styles already handle position:fixed and overflow */
+        left: -280px; 
+        top: 0;
+        height: 100vh; 
+        z-index: 1000; 
+        width: 270px; 
+        transition: left 0.3s ease-in-out; 
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3); 
+        border-right: 1px solid var(--border-color-light); 
+        overflow-y: auto; /* Keep this for mobile */
+        padding-bottom: 160px; /* Keep this for mobile */
+        background-color: var(--bg-color-medium);
+        padding: 20px; 
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+        /* Removed height/overflow/padding-bottom from general rule application */
+    }
+
+    .sidebar.open {
+        left: 0; /* Slide into view */
+    }
+
+    .chat-area {
+        width: 100%; 
+        margin-left: 0; 
+        /* height: 100%; */ /* <<< REMOVED THIS - JS will handle height */
+        flex-grow: 1; 
+        background-color: var(--bg-color-dark);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    /* Adjust chat area if sidebar is permanently shown on mobile (alternative approach) */
+    /* .chat-area.sidebar-open { 
+        margin-left: 270px; 
+    } */
+
+    .hamburger-menu {
+        display: block; /* Show the hamburger menu */
+    }
+
+    /* Slightly adjust chat container padding */
+    .chat-container {
+        padding: 10px 15px;
+    }
+
+    /* Adjust input section */
+    .input-section {
+        padding: 10px 15px;
+    }
+
+    .chat-input {
+        font-size: 0.95rem;
+    }
+
+    /* Adjust message font sizes and width */
+    .message {
+        font-size: 0.9rem;
+        padding: 8px 12px;
+        max-width: 90%; /* <<< CHANGED THIS */
+        /* Ensure other necessary properties like border-radius, line-height, word-wrap are inherited or explicitly set if needed */
+        border-radius: var(--border-radius-main);
+        line-height: 1.5;
+        word-wrap: break-word;
+    }
+
+    /* Optional: Slightly larger header on mobile */
+    .chat-header h1 {
+        font-size: 1.8rem;
+    }
+
+    .chat-header p {
+        font-size: 0.8rem;
+    }
+    
+    /* Hide scrollbars on mobile for a cleaner look, rely on touch scrolling */
+    /* Commented out for now, as body overflow removal is primary fix */
+    /* ::-webkit-scrollbar {
+        display: none;
+    } */
+
+    /* Make sure mobile buttons are also in flow if needed */
+    .sidebar .btn-reset, 
+    .sidebar .btn-delete, 
+    .sidebar .btn-danger {
+        position: static; /* <<< ADDED Ensure static position */
+        width: 100%;
+        margin-top: 10px; /* Default margin */
+    }
+    .sidebar .btn-reset {
+        margin-top: auto; /* <<< ADDED Push to bottom on mobile too */
+    }
 }

@@ -16,9 +16,14 @@
     <link rel="icon" type="image/png" href="https://img.icons8.com/color/96/000000/chat--v1.png">
 </head>
 <body>
+    <!-- Add Hamburger Menu Button (visible only on mobile) -->
+    <button class="hamburger-menu" id="hamburgerMenu">
+        <i class="fas fa-bars"></i>
+    </button>
+
     <div class="app-container">
         <!-- Left Sidebar -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
             <div class="sidebar-top">
                 <!-- File Upload Section -->
                 <label for="fileInput" class="btn btn-primary btn-upload">
@@ -94,6 +99,22 @@
     <script>
         const fileInput = document.getElementById('fileInput');
         const fileInfo = document.getElementById('file-info'); // Get the info element
+        const sidebar = document.getElementById('sidebar'); // Get sidebar element
+        const hamburgerMenu = document.getElementById('hamburgerMenu'); // Get hamburger menu button
+
+        // Toggle sidebar visibility on hamburger click
+        if (hamburgerMenu && sidebar) {
+            hamburgerMenu.addEventListener('click', () => {
+                sidebar.classList.toggle('open'); // Add/remove 'open' class
+            });
+        }
+
+        // Optional: Close sidebar when clicking outside of it on mobile
+        document.addEventListener('click', (event) => {
+            if (sidebar && sidebar.classList.contains('open') && !sidebar.contains(event.target) && !hamburgerMenu.contains(event.target)) {
+                sidebar.classList.remove('open');
+            }
+        });
 
         // Update file info display when files are selected
         if (fileInput && fileInfo) {
@@ -352,10 +373,19 @@
         }
         
         // Load documents when page loads
-        document.addEventListener('DOMContentLoaded', loadExistingDocuments);
+        document.addEventListener('DOMContentLoaded', () => {
+            loadExistingDocuments();
+            adjustChatAreaHeight();
+        });
         
         // Also try loading when window is fully loaded
-        window.addEventListener('load', toggleLibrary);
+        window.addEventListener('load', () => {
+            toggleLibrary();
+            adjustChatAreaHeight();
+        });
+
+        // Adjust height on window resize (e.g., orientation change)
+        window.addEventListener('resize', adjustChatAreaHeight);
 
         async function clearChatUI() {
             const chatContainer = document.getElementById('chatContainer');
@@ -463,6 +493,36 @@
                 }
             });
         }
+
+        // --- Function to dynamically adjust chat container height --- NEW
+        function adjustChatAreaHeight() {
+            const chatArea = document.querySelector(".chat-area");
+            const chatHeader = document.querySelector(".chat-header");
+            const chatContainer = document.getElementById('chatContainer');
+            const inputSection = document.querySelector(".input-section");
+
+            if (chatArea && chatHeader && chatContainer && inputSection) {
+                // Check if we are likely on a mobile device (screen width <= 768px)
+                if (window.innerWidth <= 768) {
+                    const windowHeight = window.innerHeight;
+                    const headerHeight = chatHeader.offsetHeight;
+                    const inputHeight = inputSection.offsetHeight;
+                    
+                    // Calculate available height for the chat messages
+                    // Add a small buffer (e.g., 5px) just in case
+                    const containerHeight = windowHeight - headerHeight - inputHeight - 5;
+                    
+                    // Apply the calculated height
+                    chatContainer.style.height = `${containerHeight}px`;
+                    chatContainer.style.maxHeight = `${containerHeight}px`; // Ensure it doesn't exceed
+                } else {
+                    // On desktop, reset height to allow CSS flex to manage it
+                    chatContainer.style.height = ''; 
+                    chatContainer.style.maxHeight = '';
+                }
+            }
+        }
+        // --- END NEW FUNCTION --- 
     </script>
 </body>
 </html>
