@@ -1,17 +1,24 @@
 import os
-from src.helper import (
-    load_documents, create_chunk, create_embeddings,
-    create_pinecone_index, create_pinecone_vector_store, create_rag_chain,
-    get_or_create_index, process_file_bytes
-)
-from pinecone import Pinecone, ServerlessSpec
-from langchain_pinecone import PineconeVectorStore
-from src.model_singletons import get_cached_llm, get_cached_embeddings
-from src.prompt import system_prompt
+import gc
+import torch
 from typing import List, Dict, Tuple, Any
 from werkzeug.datastructures import FileStorage
-import torch
-import gc
+from pinecone import Pinecone
+from langchain_pinecone import PineconeVectorStore
+from src.helper import (
+    load_documents,
+    create_chunk,
+    create_embeddings,
+    create_pinecone_vector_store,
+    create_rag_chain,
+    get_or_create_index,
+    process_file_bytes
+)
+from src.model_singletons import (
+    get_cached_llm,
+    get_cached_embeddings
+)
+from src.prompt import system_prompt
 
 def process_documents():
     """Loads and processes all uploaded documents."""
@@ -28,7 +35,7 @@ def process_documents():
         all_chunks.extend(chunks)
     
     embeddings = create_embeddings(all_chunks)
-    index_name = create_pinecone_index()
+    index_name = get_or_create_index()
     vector_store = create_pinecone_vector_store(index_name, embeddings)
     
     return vector_store
@@ -89,14 +96,9 @@ def process_uploaded_files(
         
         _embeddings = create_embeddings()
         
-        # Get the existing index name from the Flask app config
-        from flask import current_app
-        index_name = current_app.config.get('INDEX_NAME')
-        if not index_name:
-            # If no index exists yet, create one
-            index_name = get_or_create_index()
-            current_app.config['INDEX_NAME'] = index_name
-        
+        # Get the consistent index name from get_or_create_index
+        index_name = "docs-index"
+        # index_name = get_or_create_index()
         if not index_name:
             return {}, False, "Index not initialized yet. Please wait a moment and try again."
         
@@ -126,23 +128,86 @@ def process_uploaded_files(
     except Exception as e:
         return {}, False, str(e)
 
-def delete_user_data(index_name: str, user_id: str) -> Tuple[bool, str]:
-    """Delete all data associated with a user from the Pinecone index.
+def delete_user_data(index_name: str, user_id: str, document_ids: List[str]) -> Tuple[bool, str]:
+    """Delete specific documents from the current session in Pinecone index.
     
     Args:
         index_name: Name of the Pinecone index
         user_id: ID of the user whose data should be deleted
+        document_ids: List of document IDs from current session's _document_metadata
         
     Returns:
         Tuple of (success, message)
     """
     try:
+        if not document_ids:
+            return False, "No documents to delete in current session"
+
         pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
         index = pc.Index(index_name)
         
-        # Delete all vectors with matching user_id
-        index.delete(filter={"user_id": user_id})
+        # Delete only documents that match both user_id and document_ids from current session
+        for doc_id in document_ids:
+            index.delete(filter={
+                "user_id": user_id,
+                "document_id": doc_id
+            })
         
-        return True, "User data deleted successfully"
+        return True, f"Successfully deleted {len(document_ids)} documents from current session"
+            
     except Exception as e:
         return False, str(e)
+
+def process_search_query(query: str, user_id: str, index_name: str) -> Tuple[str, bool, str]:
+    """Process a search query and return the response.
+    
+    Args:
+        query: The user's search query
+        user_id: The ID of the user making the query
+        index_name: Name of the Pinecone index to search in
+        
+    Returns:
+        Tuple of (response, success, error_message)
+    """
+    try:
+        if not query:
+            return "", False, "Query parameter is required"
+            
+        if not index_name:
+            return "", False, "No index available"
+            
+        # Create embeddings instance
+        embeddings = get_cached_embeddings()
+        
+        # Create vector store with user filtering
+        vector_store = PineconeVectorStore(
+            index_name=index_name,
+            embedding=embeddings,
+            pinecone_api_key=os.getenv("PINECONE_API_KEY")
+        )
+        
+        # Set up retriever with user filtering
+        retriever = vector_store.as_retriever(
+            search_kwargs={
+                "k": 3,
+                "filter": {"user_id": user_id}  # Filter by user_id
+            },
+            search_type="similarity"
+        )
+        
+        # Get LLM instance
+        llm = get_cached_llm()
+        
+        # Get response using RAG chain
+        response = create_rag_chain(
+            llm=llm,
+            retriever=retriever,
+            system_prompt=system_prompt,
+            user_input=query,
+            user_id=user_id
+        )
+        
+        return response, True, ""
+        
+    except Exception as e:
+        return "", False, str(e)

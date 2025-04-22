@@ -203,14 +203,13 @@ html, body {
 .document-item {
     display: flex;
     align-items: center;
-    padding: 8px 10px;
-    background-color: var(--bg-color-dark);
-    border-radius: var(--border-radius-small);
-    cursor: pointer;
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin: 6px 0;
+    background-color: rgba(30, 30, 31, 0.7);
     transition: all 0.2s ease;
-    border-left: 3px solid transparent;
-    margin-bottom: 5px;
-    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    max-width: 100%;
 }
 
 .document-item:last-child {
@@ -218,9 +217,9 @@ html, body {
 }
 
 .document-item:hover {
-    background-color: var(--bg-color-hover);
-    border-left-color: var(--accent-color);
-    transform: translateX(2px);
+    background-color: rgba(40, 40, 45, 0.9);
+    transform: translateX(3px);
+    border-color: rgba(255, 255, 255, 0.1);
 }
 
 .document-item.active {
@@ -229,25 +228,42 @@ html, body {
 }
 
 .document-icon {
+    font-size: 1.2rem;
+    color: #3d8f40;
     margin-right: 10px;
-    color: var(--accent-color);
-    font-size: 1.1rem;
     flex-shrink: 0;
 }
 
-.document-info {
+.document-content {
     flex: 1;
-    min-width: 0; /* Enable text truncation */
+    min-width: 0;
     display: flex;
     flex-direction: column;
+    gap: 2px;
 }
 
 .document-title {
-    font-size: 0.85rem;
-    color: var(--text-color-primary);
+    font-size: 0.9rem;
+    font-weight: 400;
+    color: #d1d2d6;
+    margin: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.document-details {
+    font-size: 0.75rem;
+    color: #8a8d93;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.document-details i {
+    font-size: 0.8rem;
+    opacity: 0.6;
 }
 
 .document-filename {
@@ -260,6 +276,7 @@ html, body {
 
 .document-item:hover .document-title {
     color: var(--accent-color);
+    opacity: 0.9;
 }
 
 /* Remove the old hover tooltip */
@@ -615,4 +632,28 @@ html, body {
 
 .btn-danger:hover {
     background-color: #c82333;
+}
+
+/* Document List Container */
+.document-list {
+    padding: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-color) var(--bg-color-dark);
+    background-color: rgba(25, 25, 26, 0.8);
+}
+
+.document-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.document-list::-webkit-scrollbar-track {
+    background: var(--bg-color-dark);
+    border-radius: 3px;
+}
+
+.document-list::-webkit-scrollbar-thumb {
+    background-color: var(--accent-color);
+    border-radius: 3px;
 }

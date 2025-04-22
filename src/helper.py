@@ -135,11 +135,15 @@ def process_file_bytes(file_bytes, filename, user_id: str):
         
         title_future = run_async_in_thread(generate_document_title_async(initial_chunks[:2], llm))
         
+        # Generate documentId using timestamp
+        document_id = f"doc_{int(time.time() * 1000)}"
+        
         temp_metadata = {
             "filename": filename,
             "page_count": len(documents),
             "timestamp": int(os.path.getmtime(temp_path)) if os.path.exists(temp_path) else None,
-            "user_id": user_id
+            "user_id": user_id,
+            "document_id": document_id  # Add documentId to metadata
         }
         
         try:
@@ -151,6 +155,7 @@ def process_file_bytes(file_bytes, filename, user_id: str):
             doc.metadata["source"] = filename
             doc.metadata["title"] = document_title
             doc.metadata["user_id"] = user_id
+            doc.metadata["document_id"] = document_id  # Add documentId to each document's metadata
         temp_metadata["title"] = document_title
         
         gc.collect()
@@ -242,6 +247,10 @@ def create_pinecone_vector_store(index_name, embeddings, chunks):
                     metadata['user_id'] = chunks[i].metadata['user_id']
                 else:
                     continue
+                    
+            # Include documentId in metadata if available
+            if hasattr(chunks[i], 'metadata') and 'document_id' in chunks[i].metadata:
+                metadata['document_id'] = chunks[i].metadata['document_id']
 
             vectors.append({
                 'id': f'chunk_{i}',
@@ -339,12 +348,20 @@ def get_or_create_index(index_name=None):
     """Gets existing index or creates a new one for the session."""
     try:
         if index_name is None:
-            session_id = str(uuid.uuid4())[:8]
-            index_name = f"docs-{session_id}"
+            # Use a consistent index name
+            index_name = "docs-index"
             
         pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
         if index_name not in pc.list_indexes().names():
-            index_name = create_pinecone_index(index_name)
+            pc.create_index(
+                name=index_name,
+                dimension=1024,
+                metric="cosine",
+                spec=ServerlessSpec(
+                    cloud='aws',
+                    region='us-east-1'
+                )
+            )
         
         return index_name
     except Exception as e:

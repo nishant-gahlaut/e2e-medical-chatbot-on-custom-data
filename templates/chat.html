@@ -267,90 +267,47 @@
         
         // Function to update the document library
         function updateDocumentLibrary(documents) {
-            const documentLibrary = document.getElementById('document-library');
             const documentList = document.getElementById('document-list');
-            const libraryToggle = document.getElementById('library-toggle');
-            
-            if (!documentLibrary || !documentList) {
-                console.error("Document library elements not found in DOM");
-                return;
-            }
-            
-            // Activate library section
-            documentLibrary.classList.add('active');
-            
-            // Always expand the library when new documents are added
-            documentLibrary.classList.add('expanded');
-            
-            // Update the chevron icon to match expanded state
-            const chevron = libraryToggle.querySelector('.library-toggle-icon');
-            if (chevron) {
-                chevron.classList.remove('fa-chevron-down');
-                chevron.classList.add('fa-chevron-up');
-            }
-            
-            // Update notification badge
-            let badgeElement = libraryToggle.querySelector('.notification-badge');
-            if (badgeElement) {
-                if (documents.length > 0) {
-                    badgeElement.textContent = documents.length;
-                    badgeElement.style.display = 'inline-flex';
-                } else {
-                    badgeElement.style.display = 'none';
-                }
-            }
-            
+            const documentLibrary = document.getElementById('document-library');
+            if (!documentList || !documentLibrary) return;
+
             // Clear existing list
             documentList.innerHTML = '';
-            
-            // Sort documents by timestamp (newest first)
-            const sortedDocuments = [...documents].sort((a, b) => {
-                return (b.timestamp || 0) - (a.timestamp || 0);
+
+            // Add new documents
+            documents.forEach(doc => {
+                const li = document.createElement('li');
+                li.setAttribute('data-document-id', doc.document_id);
+                li.className = 'document-item';
+                
+                const docIcon = document.createElement('i');
+                docIcon.className = 'fas fa-file-pdf document-icon';
+                
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'document-content';
+                
+                const label = document.createElement('label');
+                label.className = 'document-title';
+                label.textContent = doc.title || doc.filename;
+                
+                const details = document.createElement('small');
+                details.className = 'document-details';
+                details.innerHTML = `<i class="fas fa-file-alt"></i> ${doc.page_count} pages`;
+                
+                contentDiv.appendChild(label);
+                contentDiv.appendChild(details);
+                
+                li.appendChild(docIcon);
+                li.appendChild(contentDiv);
+                documentList.appendChild(li);
             });
-            
-            // Add document items
-            sortedDocuments.forEach(doc => {
-                const docItem = document.createElement('div');
-                docItem.className = 'document-item';
-                docItem.setAttribute('data-filename', doc.filename);
-                docItem.setAttribute('data-title', doc.title || 'Untitled Document');
-                
-                // Choose icon based on filename extension
-                let iconClass = 'fas fa-file-pdf';
-                if (doc.filename.toLowerCase().endsWith('.docx') || doc.filename.toLowerCase().endsWith('.doc')) {
-                    iconClass = 'fas fa-file-word';
-                } else if (doc.filename.toLowerCase().endsWith('.txt')) {
-                    iconClass = 'fas fa-file-alt';
-                }
-                
-                docItem.innerHTML = `
-                    <i class="${iconClass} document-icon"></i>
-                    <div class="document-info">
-                        <span class="document-title">${doc.title || 'Untitled Document'}</span>
-                        <span class="document-filename">${doc.filename}</span>
-                    </div>
-                    <div class="document-tooltip">
-                        <strong>${doc.title || 'Untitled Document'}</strong><br>
-                        <small>${doc.filename}</small>
-                    </div>
-                `;
-                
-                // Add click handler
-                docItem.addEventListener('click', () => {
-                    // Toggle active state
-                    document.querySelectorAll('.document-item').forEach(item => {
-                        item.classList.remove('active');
-                    });
-                    docItem.classList.add('active');
-                });
-                
-                documentList.appendChild(docItem);
-            });
-            
-            // Adjust max-height based on content
-            const totalHeight = sortedDocuments.length * 50; // Approximate height per item
-            const maxHeight = Math.min(300, Math.max(100, totalHeight + 60)); // Add padding
-            documentLibrary.style.maxHeight = documentLibrary.classList.contains('expanded') ? `${maxHeight}px` : '40px';
+
+            // Show/hide the library based on whether there are documents
+            if (documents.length > 0) {
+                documentLibrary.classList.add('active');
+            } else {
+                documentLibrary.classList.remove('active');
+            }
         }
         
         // Direct toggle library function
@@ -409,39 +366,43 @@
         }
 
         async function deleteFiles() {
-            const chatContainer = document.getElementById('chatContainer');
             const documentLibrary = document.getElementById('document-library');
-            if (!chatContainer) return;
+            const documentList = document.getElementById('document-list');
+            if (!documentLibrary || !documentList) return;
+
+            if (!confirm('Are you sure you want to delete all files from the current session?')) {
+                return;
+            }
 
             try {
-                // Show deleting message
-                addMessage("Deleting documents...", false);
-                
-                // Call the reset API endpoint
-                const response = await fetch('/reset', { method: 'POST' });
-                
+                // Get all document IDs from the list items
+                const documentIds = Array.from(documentList.querySelectorAll('li')).map(listItem => 
+                    listItem.getAttribute('data-document-id')
+                ).filter(id => id); // Filter out any undefined/null values
+
+                // Call the delete endpoint
+                const response = await fetch('/delete_documents', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ document_ids: documentIds })
+                });
+
                 if (!response.ok) {
                     const errorText = await response.text();
                     throw new Error(`Delete failed: ${response.status} ${response.statusText}. ${errorText}`);
                 }
 
-                // Clear chat visually
-                chatContainer.innerHTML = '<div class="message bot-message">Documents deleted. Upload new files to continue.</div>';
+                const data = await response.json();
                 
-                // Reset document library
-                if (documentLibrary) {
-                    documentLibrary.classList.remove('active');
-                    const documentList = document.getElementById('document-list');
-                    if (documentList) documentList.innerHTML = '';
+                // Update the document library with remaining documents
+                if (data.documents) {
+                    updateDocumentLibrary(data.documents);
                 }
-                
-                // Reset file info and file input
-                const fileInfo = document.getElementById('file-info');
-                if (fileInfo) fileInfo.textContent = 'No files selected';
-                
-                const fileInput = document.getElementById('fileInput');
-                if (fileInput) fileInput.value = '';
-                
+
+                addMessage(data.message || 'Files deleted successfully', false);
+
             } catch (error) {
                 console.error("Delete error:", error);
                 addMessage(`Error deleting files: ${error.message}`, false);

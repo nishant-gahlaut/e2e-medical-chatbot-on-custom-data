@@ -3,12 +3,20 @@ import time
 import threading
 from flask import Flask, request, jsonify, render_template, url_for, session, redirect
 from dotenv import load_dotenv
-from src.service import get_response, process_uploaded_files, delete_user_data
+from src.service import (
+    process_uploaded_files,
+    delete_user_data,
+    process_search_query
+)
+from src.helper import (
+    get_or_create_index,
+    format_username
+)
 import shutil
 from src.helper import (
     load_documents, process_file_bytes, create_chunk, create_embeddings,
-    create_pinecone_index, create_pinecone_vector_store, create_rag_chain,
-    get_or_create_index, log_memory_usage, format_username
+    create_pinecone_vector_store, create_rag_chain,
+    log_memory_usage
 )
 import psutil
 import torch
@@ -31,19 +39,20 @@ def create_app():
     app.secret_key = os.urandom(24)
     app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024
     
-    # Initialize Pinecone and models
-    try:
-        if not app.config.get('INDEX_NAME'):
+    def initialize_pinecone():
+        """Initialize Pinecone index and return the index name."""
+        try:
             index_name = get_or_create_index()
-            app.config['INDEX_NAME'] = index_name
-            app.logger.info(f"Created new Pinecone index: {index_name}")
-        
-        # Initialize models
-        _llm = get_cached_llm()
-        _embeddings = get_cached_embeddings()
-        
-    except Exception as e:
-        app.logger.error(f"Error initializing app: {str(e)}")
+            app.logger.info(f"Initialized Pinecone index: {index_name}")
+            return index_name
+        except Exception as e:
+            app.logger.error(f"Error initializing Pinecone: {str(e)}")
+            return None
+    
+    # Initialize Pinecone index
+    index_name = initialize_pinecone()
+    if index_name:
+        app.config['INDEX_NAME'] = index_name
     
     return app
 
@@ -58,20 +67,12 @@ GOOGLE_GEMINI_KEY = os.getenv("GOOGLE_GEMINI_KEY")
 os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
 os.environ["GOOGLE_GEMINI_KEY"] = GOOGLE_GEMINI_KEY
 
-_documents = None
-_chunks = None
-_embeddings = None
-_vector_store = None
-_llm = None
+# Global state for document metadata only
 _document_metadata = []
 
 def get_index_name():
     """Get the current index name from app config."""
     return app.config.get('INDEX_NAME')
-
-def set_index_name(name):
-    """Set the index name in app config."""
-    app.config['INDEX_NAME'] = name
 
 @app.route('/')
 def index():
@@ -85,7 +86,6 @@ def chat():
     """Render chat UI."""
     if 'user_id' not in session:
         return redirect(url_for('index'))
-    
     return render_template('chat.html')
 
 @app.route('/set_name', methods=['POST'])
@@ -159,98 +159,72 @@ def get_documents():
 def chatbot():
     """Handles user queries by fetching relevant information."""
     query = request.args.get("query")
-    if not query:
-        return jsonify({"error": "Query parameter is required"}), 400
+    user_id = session.get('user_id', 'anonymous')
+    index_name = get_index_name()
+    
+    response, success, error_message = process_search_query(query, user_id, index_name)
+    
+    if not success:
+        return jsonify({"error": error_message}), 400 if "required" in error_message else 500
+    
+    return jsonify({
+        "response": response,
+        "user_context": user_id
+    })
+
+@app.route('/delete_documents', methods=['POST'])
+def delete_documents():
+    """Delete specific documents from Pinecone and local metadata."""
+    global _document_metadata
     
     try:
-        # Get the current user_id and index_name
+        data = request.get_json()
+        document_ids = data.get('document_ids', [])
         user_id = session.get('user_id', 'anonymous')
-        index_name = get_index_name()
         
+        if not document_ids:
+            return jsonify({"error": "No document IDs provided"}), 400
+            
+        index_name = get_index_name()
         if not index_name:
             return jsonify({"error": "No index available"}), 400
             
-        # Create embeddings instance
-        embeddings = get_cached_embeddings()
+        success, message = delete_user_data(index_name, user_id, document_ids)
         
-        # Create vector store with user filtering
-        vector_store = PineconeVectorStore(
-            index_name=index_name,
-            embedding=embeddings,
-            pinecone_api_key=os.getenv("PINECONE_API_KEY")
-        )
-        
-        # Set up retriever with user filtering
-        retriever = vector_store.as_retriever(
-            search_kwargs={
-                "k": 3,
-                "filter": {"user_id": user_id}  # Filter by user_id
-            },
-            search_type="similarity"
-        )
-        
-        # Get LLM instance
-        llm = get_cached_llm()
-        
-        # Get response using RAG chain
-        response = create_rag_chain(
-            llm=llm,
-            retriever=retriever,
-            system_prompt=system_prompt,
-            user_input=query,
-            user_id=user_id
-        )
-        
-        return jsonify({
-            "response": response,
-            "user_context": user_id
-        })
-    except Exception as e:
-        app.logger.error(f"Search error: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/reset', methods=['POST'])
-def reset():
-    """Clears uploaded documents from the library."""
-    global _documents, _chunks, _embeddings, _vector_store, _llm, _document_metadata
-    
-    try:
-        _documents = None
-        _chunks = None
-        _embeddings = None
-        _vector_store = None
-        _document_metadata = []
-        
-        gc.collect()
-        
-        return jsonify({
-            "message": "Document library cleared successfully",
-            "status": "success"
-        })
+        if success:
+            # Update local document metadata
+            _document_metadata = [doc for doc in _document_metadata if doc.get('document_id') not in document_ids]
+            return jsonify({
+                "message": message,
+                "documents": _document_metadata
+            })
+        else:
+            return jsonify({"error": message}), 500
+            
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/reset_session', methods=['POST'])
 def reset_session():
-    """Delete user's data from Pinecone index and reset the session."""
+    """Reset the entire session, clearing all documents."""
+    global _document_metadata
+    
     try:
-        # Get user ID and index name
         user_id = session.get('user_id', 'anonymous')
         index_name = get_index_name()
         
         if index_name:
-            # Delete only the user's data from the index
             success, message = delete_user_data(index_name, user_id)
             if not success:
-                return jsonify({"error": f"Error deleting user data: {message}"}), 500
+                return jsonify({"error": message}), 500
         
-        # Reset application state
-        reset()
+        _document_metadata = []
         
         return jsonify({
             "message": "Session reset successfully",
             "status": "success"
         })
+        
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
