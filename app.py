@@ -1,14 +1,14 @@
 import os
 import time
 import threading
-from flask import Flask, request, jsonify, render_template, url_for, session
+from flask import Flask, request, jsonify, render_template, url_for, session, redirect
 from dotenv import load_dotenv
 from src.service import get_response
 import shutil
 from src.helper import (
     load_documents, process_file_bytes, create_chunk, create_embeddings,
     create_pinecone_index, create_pinecone_vector_store, create_rag_chain,
-    get_or_create_index, log_memory_usage
+    get_or_create_index, log_memory_usage, format_username
 )
 import psutil
 import torch
@@ -110,26 +110,67 @@ def initialize_models():
 
 @app.route('/')
 def index():
-    """Render chat UI."""
+    """Render landing page."""
+    # Check if user is already logged in
+    if 'user_id' in session:
+        return redirect(url_for('chat'))
+        
     # Log memory before initialization
     log_app_memory("Before / Endpoint Processing")
     
     # Initialize index and models in background
-    threading.Thread(target=lambda: set_index_name(get_or_create_index(get_index_name()))).start()
+    if not get_index_name():
+        threading.Thread(target=lambda: set_index_name(get_or_create_index(get_index_name()))).start()
     threading.Thread(target=initialize_models).start()
     
     # Log memory after starting initialization threads
     log_app_memory("After Starting Initialization Threads")
     
+    return render_template('landing.html')
+
+@app.route('/chat')
+def chat():
+    """Render chat UI."""
+    # Ensure user has entered their name
+    if 'user_id' not in session:
+        return redirect(url_for('index'))
+    
     return render_template('chat.html')
+
+@app.route('/set_name', methods=['POST'])
+def set_name():
+    """Store user's name in session."""
+    data = request.get_json()
+    name = data.get('name')
+    if not name:
+        return jsonify({"success": False, "error": "Name is required"}), 400
+    
+    # Format the username and use it directly as user_id
+    user_id = format_username(name)
+    if not user_id:
+        return jsonify({"success": False, "error": "Invalid name format"}), 400
+    
+    # Store formatted name only
+    session['user_id'] = user_id
+    
+    print(f"User registered with ID: '{user_id}'")
+    return jsonify({"success": True, "redirect": url_for('chat')})
+
+@app.route('/get_user_name')
+def get_user_name():
+    """Get user's ID from session."""
+    return jsonify({"name": session.get('user_id', '')})
 
 @app.route('/upload', methods=['POST'])
 def upload():
     """Handles multiple file uploads and processes them for vector storage without permanent storage."""
     global _documents, _chunks, _embeddings, _vector_store, _llm, _document_metadata
     
+    # Get user ID from session
+    user_id = session.get('user_id', 'anonymous')
+    
     request_start_time = time.time()
-    print("\n🔄 Starting file upload request processing...")
+    print(f"\n🔄 Starting file upload request processing for user: {user_id}...")
     log_app_memory("Start of Upload Request")
     
     if 'files' not in request.files:
@@ -173,7 +214,7 @@ def upload():
                 
                 # Process the file bytes directly using a temporary file
                 process_start = time.time()
-                documents, file_metadata = process_file_bytes(file_bytes, file.filename)
+                documents, file_metadata = process_file_bytes(file_bytes, file.filename, user_id)
                 print(f"  ⏱️ File processing took {time.time() - process_start:.2f} seconds")
                 
                 all_documents.extend(documents)
@@ -182,9 +223,6 @@ def upload():
                 
                 print(f"  ✅ Total time for {file.filename}: {time.time() - file_start_time:.2f} seconds")
                 log_app_memory(f"After Processing {file.filename}")
-        
-        file_processing_time = time.time() - file_processing_start
-        print(f"📁 File processing phase complete: {file_processing_time:.2f} seconds")
         
         # Store document metadata
         _document_metadata = all_metadata
@@ -264,12 +302,12 @@ def upload():
             "chunk_count": len(_chunks),
             "documents": _document_metadata,
             "processing_time": {
-                "file_processing": file_processing_time,
+                "file_processing": file_processing_start,
                 "chunking": chunk_time,
                 "vector_store_creation": vector_store_time,
                 "total": total_time
             },
-            "index_name": index_name  # Return index name for verification
+            "index_name": index_name
         })
     except Exception as e:
         print(f"❌ Error processing files: {str(e)}")
@@ -310,11 +348,25 @@ def chatbot():
             
         # Ensure we're using the same embeddings instance
         if _embeddings is None:
-            _embeddings = get_cached_embeddings()  # Will use Cohere by default
+            _embeddings = get_cached_embeddings()
         
-        # Use the stored components to get a response
-        response = create_rag_chain(_llm, _vector_store, system_prompt, query)
-        return jsonify({"response": response})
+        # Get user ID from session for filtering
+        user_id = session.get('user_id', 'anonymous')
+        print(f"\n🔍 Processing query for user: {user_id}")
+        
+        # Use the stored components to get a response with user filtering
+        response = create_rag_chain(
+            llm=_llm,
+            retriever=_vector_store,
+            system_prompt=system_prompt,
+            user_input=query,
+            user_id=user_id
+        )
+        
+        return jsonify({
+            "response": response,
+            "user_context": user_id  # Include user context in response
+        })
     except Exception as e:
         print(f"Error in chatbot endpoint: {str(e)}")
         return jsonify({"error": str(e)}), 500

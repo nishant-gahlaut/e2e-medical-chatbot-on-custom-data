@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HeyBro - Your AI Buddy</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Arial', sans-serif;
+            background-color: #1a1a1a;
+            overflow: hidden; /* Prevent scrolling while overlay is active */
+        }
+        .landing-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.65); /* Made more transparent */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: all 0.5s ease-in-out;
+            backdrop-filter: blur(3px); /* Add slight blur to background */
+        }
+        .name-form {
+            background-color: rgba(40, 40, 40, 0.8);
+            padding: 2.5rem;
+            border-radius: 15px;
+            text-align: center;
+            color: white;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transform: translateY(0);
+            transition: all 0.3s ease;
+            max-width: 90%;
+            width: 400px;
+        }
+        .name-form:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 40px rgba(0, 0, 0, 0.4);
+        }
+        .name-form h1 {
+            margin-bottom: 1rem;
+            font-size: 2.4rem;
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            color: #4CAF50;
+        }
+        .name-form p {
+            margin-bottom: 2rem;
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.4;
+        }
+        .emoji {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+        }
+        .name-input {
+            background-color: rgba(255, 255, 255, 0.08);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            padding: 1rem 1.2rem;
+            border-radius: 8px;
+            color: white;
+            font-size: 1.1rem;
+            width: 100%;
+            max-width: 320px;
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+        }
+        .name-input:focus {
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.3);
+            background-color: rgba(255, 255, 255, 0.12);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+        }
+        .name-input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+        .enter-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 1rem 2.5rem;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 500;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+        }
+        .enter-btn:hover {
+            background-color: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+        }
+        .enter-btn:active {
+            transform: translateY(0);
+        }
+        .fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+        #chatContainer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1; /* Below the overlay */
+            opacity: 0.3; /* Make chat interface slightly visible */
+            transition: opacity 0.5s ease;
+        }
+        .chat-visible {
+            opacity: 1 !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Chat container first so it's in the background -->
+    <div id="chatContainer">
+        {% include 'chat.html' %}
+    </div>
+
+    <div class="landing-overlay" id="landingOverlay">
+        <div class="name-form">
+            <div class="emoji">👋</div>
+            <h1>Hey Bro!</h1>
+            <p>Drop your name below and let's chat!<br>I'm your AI buddy, ready to help!</p>
+            <input type="text" id="userName" class="name-input" placeholder="Type your name here, bro!" required>
+            <br>
+            <button class="enter-btn" onclick="submitName()">Let's Go!</button>
+        </div>
+    </div>
+
+    <script>
+        function submitName() {
+            const nameInput = document.getElementById('userName');
+            const name = nameInput.value.trim();
+            
+            if (name) {
+                // Store name in session
+                fetch('/set_name', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name: name })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Add fade-out class to overlay
+                        document.getElementById('landingOverlay').classList.add('fade-out');
+                        // Make chat container fully visible
+                        document.getElementById('chatContainer').classList.add('chat-visible');
+                        // Wait for fade animation to complete before redirecting
+                        setTimeout(() => {
+                            window.location.href = data.redirect;
+                        }, 500);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred. Please try again.');
+                });
+            }
+        }
+
+        // Allow Enter key to submit
+        document.getElementById('userName').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                submitName();
+            }
+        });
+
+        // Focus the input field when page loads
+        window.addEventListener('load', function() {
+            document.getElementById('userName').focus();
+        });
+    </script>
+</body>
+</html> 

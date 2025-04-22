@@ -147,18 +147,19 @@ async def generate_document_title_async(chunks, llm) -> str:
         print(f"Error generating title: {str(e)}")
         return "Untitled Document"
 
-def process_file_bytes(file_bytes, filename):
+def process_file_bytes(file_bytes, filename, user_id: str):
     """Processes a file directly from its bytes using a temporary file.
     
     Args:
         file_bytes: The binary content of the file
         filename: Original filename (for metadata)
+        user_id: User ID to associate with the document
         
     Returns:
         Tuple of (documents, metadata) where metadata contains title and other info
     """
     total_start_time = time.time()
-    print(f"\n🔄 Starting processing of file: {filename}")
+    print(f"\n🔄 Starting processing of file: {filename} for user: {user_id}")
     
     # Create a temporary file
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_file:
@@ -187,7 +188,8 @@ def process_file_bytes(file_bytes, filename):
         temp_metadata = {
             "filename": filename,
             "page_count": len(documents),
-            "timestamp": int(os.path.getmtime(temp_path)) if os.path.exists(temp_path) else None
+            "timestamp": int(os.path.getmtime(temp_path)) if os.path.exists(temp_path) else None,
+            "user_id": user_id  # Add user ID to metadata
         }
         log_time(meta_start, "Initial metadata addition")
         
@@ -200,10 +202,11 @@ def process_file_bytes(file_bytes, filename):
         
         log_time(title_start, "Async title generation")
         
-        # Update metadata with title
+        # Update metadata with title and user ID
         for doc in documents:
             doc.metadata["source"] = filename
             doc.metadata["title"] = document_title
+            doc.metadata["user_id"] = user_id  # Add user ID to each document's metadata
         temp_metadata["title"] = document_title
         
         # Force garbage collection
@@ -341,7 +344,7 @@ def create_pinecone_index(index_name):
         # Create index
         pc.create_index(
             name=index_name,
-            dimension=1024,  # Using 768 dimensions as specified
+            dimension=1024, 
             metric="cosine",
             spec=ServerlessSpec(
                 cloud='aws',
@@ -370,14 +373,28 @@ def create_pinecone_vector_store(index_name, embeddings, chunks):
         prep_start = time.time()
         vectors = []
         for i, chunk_data in enumerate(embedded_chunks):
+            # Ensure user_id is present in metadata
+            metadata = {
+                **chunk_data['metadata'],
+                'text': chunk_data['text']
+            }
+            # Verify user_id is in metadata
+            if 'user_id' not in metadata:
+                print(f"Warning: user_id not found in chunk metadata for chunk_{i}")
+                # Get user_id from the original chunk if available
+                if hasattr(chunks[i], 'metadata') and 'user_id' in chunks[i].metadata:
+                    metadata['user_id'] = chunks[i].metadata['user_id']
+                else:
+                    print(f"Error: Could not find user_id for chunk_{i}")
+                    continue
+
             vectors.append({
                 'id': f'chunk_{i}',
                 'values': chunk_data['embedding'],
-                'metadata': {
-                    **chunk_data['metadata'],
-                    'text': chunk_data['text']
-                }
+                'metadata': metadata
             })
+            
+        print(f"📊 Prepared {len(vectors)} vectors with user-specific metadata")
         log_time(prep_start, "Vector preparation")
         
         # Initialize Pinecone and upsert vectors
@@ -396,17 +413,29 @@ def create_pinecone_vector_store(index_name, embeddings, chunks):
             batch_num = (i // batch_size) + 1
             total_batches = (total_vectors + batch_size - 1) // batch_size
             print(f"  ↳ Batch {batch_num}/{total_batches} upserted in {(batch_end - batch_start):.2f} seconds")
+            # Log a sample of metadata from this batch for verification
+            if batch_num == 1:
+                sample = batch[0] if batch else None
+                if sample:
+                    print(f"  ↳ Sample metadata: user_id='{sample['metadata'].get('user_id', 'NOT_FOUND')}'")
         
         log_time(upsert_start, "Pinecone upsert")
         
-        # Create retriever
+        # Create retriever with user filtering capability
         retriever_start = time.time()
         vector_store = PineconeVectorStore(
             index_name=index_name,
             embedding=embeddings,
             pinecone_api_key=os.getenv("PINECONE_API_KEY")
         )
-        retriever = vector_store.as_retriever(search_kwargs={"k": 3}, search_type="similarity")
+        # Initialize retriever with metadata filtering capability
+        retriever = vector_store.as_retriever(
+            search_kwargs={
+                "k": 3,
+                # Don't set filter here as it will be set per-request based on the current user
+            },
+            search_type="similarity"
+        )
         log_time(retriever_start, "Retriever creation")
         
         # Final garbage collection
@@ -427,8 +456,31 @@ def load_llm():
     """Loads the Google Gemini AI model."""
     return get_cached_llm()
 
-def create_rag_chain(llm, retriever, system_prompt, user_input):
-    """Creates the RAG pipeline to process user queries."""
+def create_rag_chain(llm, retriever, system_prompt, user_input, user_id: str = None):
+    """Creates the RAG pipeline to process user queries.
+    
+    Args:
+        llm: The language model to use
+        retriever: The retriever instance
+        system_prompt: System prompt for the LLM
+        user_input: User's query
+        user_id: User ID for filtering documents (optional)
+    
+    Returns:
+        The response from the LLM
+    """
+    # If user_id is provided, add filtering
+    if user_id:
+        if isinstance(retriever, PineconeVectorStore):
+            retriever = retriever.as_retriever(
+                search_kwargs={
+                    "k": 3,
+                    "filter": {"user_id": user_id}
+                },
+                search_type="similarity"
+            )
+        print(f"🔍 Retrieving documents for user: {user_id}")
+    
     prompt = ChatPromptTemplate.from_messages([
         ("system", system_prompt),
         ("user", user_input),
@@ -516,3 +568,22 @@ def get_or_create_index(index_name=None):
     except Exception as e:
         print(f"⚠️ Error in index setup: {str(e)}")
         raise e
+
+def format_username(name: str) -> str:
+    """Format username by replacing spaces with underscores and removing special characters.
+    
+    Args:
+        name: The original username string
+        
+    Returns:
+        Formatted username string with spaces replaced by underscores,
+        special characters removed, and converted to lowercase
+    """
+    # Replace multiple spaces with single space and strip
+    name = ' '.join(name.split()).strip()
+    # Replace spaces with underscores
+    name = name.replace(' ', '_')
+    # Remove any special characters except underscores
+    name = ''.join(c for c in name if c.isalnum() or c == '_')
+    # Convert to lowercase for consistency
+    return name.lower()
