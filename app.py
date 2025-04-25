@@ -27,6 +27,11 @@ import uuid
 from src.model_singletons import get_cached_llm, get_cached_embeddings
 import gc
 
+# Import the user service handlers
+from src.services.user_service import handle_set_name, handle_get_user_name
+# Import the web crawl service handlers
+from src.services.web_crawl_service import handle_crawl_and_index, process_crawl_request
+
 load_dotenv()
 
 def create_app():
@@ -90,24 +95,14 @@ def chat():
 
 @app.route('/set_name', methods=['POST'])
 def set_name():
-    """Store user's name in session."""
-    data = request.get_json()
-    name = data.get('name')
-    if not name:
-        return jsonify({"success": False, "error": "Name is required"}), 400
-    
-    user_id = format_username(name)
-    if not user_id:
-        return jsonify({"success": False, "error": "Invalid name format"}), 400
-    
-    session['user_id'] = user_id
-    
-    return jsonify({"success": True, "redirect": url_for('chat')})
+    """Store user's name in session by calling the handler."""
+    success, response_data, status_code = handle_set_name(request, session)
+    return jsonify(response_data), status_code
 
 @app.route('/get_user_name')
 def get_user_name():
-    """Get user's ID from session."""
-    return jsonify({"name": session.get('user_id', '')})
+    """Get user's ID from session by calling the handler."""
+    return handle_get_user_name(session)
 
 @app.route('/upload', methods=['POST'])
 def upload():
@@ -144,6 +139,25 @@ def upload():
         "chunk_count": response_data["chunk_count"],
         "index_name": response_data["index_name"]
     })
+
+@app.route('/crawl', methods=['POST'])
+def crawl_website():
+    """Handles website crawling requests by delegating to the service function."""
+    global _document_metadata
+    
+    # Delegate request processing to the service function
+    response_data, status_code, updated_metadata = process_crawl_request(
+        request,
+        session,
+        get_index_name, # Pass the function itself
+        app.logger,     # Pass the app's logger
+        _document_metadata # Pass the current metadata
+    )
+    
+    # Update the global metadata list with the result from the service
+    _document_metadata = updated_metadata
+    
+    return jsonify(response_data), status_code
 
 @app.route('/documents', methods=['GET'])
 def get_documents():

@@ -16,139 +16,273 @@
     <link rel="icon" type="image/png" href="https://img.icons8.com/color/96/000000/chat--v1.png">
 </head>
 <body>
-    <!-- Add Hamburger Menu Button (visible only on mobile) -->
-    <button class="hamburger-menu" id="hamburgerMenu">
-        <i class="fas fa-bars"></i>
-    </button>
+    <!-- Removed old Hamburger Menu -->
 
-    <div class="app-container">
-        <!-- Left Sidebar -->
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-top">
-                <!-- File Upload Section -->
-                <label for="fileInput" class="btn btn-primary btn-upload">
-                    <i class="fas fa-cloud-upload-alt"></i> Upload Documents
-                </label>
-                <!-- Hide the actual file input, style the label as a button -->
-                <input type="file" id="fileInput" multiple style="display: none;">
-                <button class="btn btn-secondary btn-trigger-upload" onclick="uploadFiles()">Confirm Upload</button>
-                <small id="file-info">No files selected</small> <!-- Optional: Show selected file names -->
-                
-                <!-- New upload progress and status indicator -->
-                <div id="upload-status" class="upload-status hidden">
-                    <div class="upload-progress-container">
-                        <div id="upload-progress-bar" class="upload-progress-bar"></div>
-                    </div>
-                    <div id="upload-status-text" class="upload-status-text">Processing files...</div>
-                    <div id="upload-time-estimate" class="upload-time-estimate"></div>
+    <div class="app-container new-layout"> <!-- Add class for new layout -->
+        <!-- New App Navigation Sidebar -->
+        <nav class="app-nav" id="app-nav">
+            <button class="nav-button" id="show-library-btn" title="Show Library">
+                <i class="fas fa-book-open"></i>
+                <span>Library</span>
+            </button>
+            <!-- Add other nav items here later if needed -->
+        </nav>
+
+        <!-- Main Content Area (holds chat and library) -->
+        <div class="main-content-area">
+            
+            <!-- Chat Area (Existing <main>) -->
+            <main class="chat-area" id="chat-area">
+                <!-- ... (keep existing chat header, container, input section) ... -->
+                 <div class="chat-header">
+                    <h1>Hey<span class="accent-text">Bro</span><span class="accent-mark">.</span><span class="accent-mark">!</span></h1>
+                    <p>Your personalized AI Sathi, rooted in everyday usefulness</p>
+                </div>
+                <div class="chat-container" id="chatContainer">
+                     <div class="message bot-message">HeyBro, Upload files or add web pages to your library, then ask me anything about them.</div>
+                </div>
+                 <div class="input-section">
+                    <button class="btn btn-secondary btn-clear-chat-inline small-btn" onclick="clearChatUI()" title="Clear Chat History">
+                         <i class="fas fa-broom"></i>
+                     </button>
+                    <input type="text" class="chat-input" id="userInput" placeholder="ask something...">
+                    <button class="btn btn-send" id="send-button">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </main>
+
+            <!-- New Library View (Initially Hidden) -->
+            <div class="library-view hidden" id="library-view">
+                <div class="library-header-controls">
+                    <button class="btn btn-secondary back-button" id="back-to-chat-btn">
+                        <i class="fas fa-arrow-left"></i> Back to Chat
+                    </button>
                 </div>
                 
-                <!-- Document Library Section -->
-                <div id="document-library" class="document-library">
-                    <div class="library-header" id="library-toggle" onclick="toggleLibrary()">
-                        <div class="library-title">
-                            <i class="fas fa-book"></i> Your Library
-                            <span class="notification-badge" style="display: none;">0</span>
+                <!-- Content area for library sections -->
+                <div class="library-content-area"> 
+
+                    <!-- Top Row: Add Content Cards -->
+                    <div class="add-content-container"> 
+                        <!-- Upload Card -->
+                        <div class="add-card upload-card"> 
+                            <h4><i class="fas fa-file-upload"></i> Upload Documents</h4>
+                            <p class="card-description">Select PDF, TXT, etc.</p>
+                            <label for="fileInput" class="btn btn-primary btn-upload full-width">
+                                <i class="fas fa-cloud-upload-alt"></i> Select File(s)
+                            </label>
+                            <input type="file" id="fileInput" multiple style="display: none;">
+                            <small id="file-info" class="centered-text">No files selected</small> 
+                            <button class="btn btn-secondary btn-trigger-upload full-width" onclick="uploadFiles()">Confirm Upload</button>
+                            <div id="upload-status" class="upload-status compact hidden">
+                                <div class="upload-progress-container">
+                                    <div id="upload-progress-bar" class="upload-progress-bar"></div>
+                                </div>
+                                <div id="upload-status-text" class="upload-status-text">Processing...</div>
+                                <div id="upload-time-estimate" class="upload-time-estimate"></div>
+                            </div>
                         </div>
-                        <i class="fas fa-chevron-down library-toggle-icon"></i>
+                        <!-- Web Add Card -->
+                        <div class="add-card web-card"> 
+                             <h4><i class="fas fa-link"></i> Add Web Page</h4>
+                             <p class="card-description">Paste a single page URL.</p>
+                            <div class="input-group">
+                                 <input type="url" id="urlInput" class="form-control url-input" placeholder="https://...">
+                                 <button class="btn btn-crawl" onclick="addWebsite()">
+                                     <i class="fas fa-plus-circle"></i> Add
+                                 </button>
+                            </div>
+                            <div id="add-website-status" class="upload-status compact hidden">
+                                <div class="progress-container">
+                                    <div class="progress-bar" id="add-website-progress-bar" style="width: 0%"></div>
+                                </div>
+                                <p id="add-website-status-text">Processing...</p>
+                            </div>
+                        </div>
                     </div>
-                    <div id="document-list" class="document-list">
-                        <!-- Document items will be added here dynamically -->
-                        <div class="document-loading">Waiting for documents...</div>
+
+                    <!-- Bottom Row: Document List -->
+                    <div class="library-section document-list-section" id="document-library"> 
+                        <div class="library-header list-header" id="library-toggle" onclick="toggleLibraryListDisplay()">
+                            <h3><i class="fas fa-book"></i> Your Documents 
+                                <span class="notification-badge" style="display: none;">0</span> 
+                            </h3>
+                            <i class="fas fa-chevron-down library-toggle-icon"></i>
+                        </div>
+                        <div id="document-list" class="document-list">
+                            <div class="document-loading">Loading documents...</div>
+                        </div>
+                        <div class="bulk-actions">
+                            <button class="btn btn-delete small-btn" onclick="deleteSelectedFiles()"> 
+                                <i class="fas fa-trash-alt"></i> Delete Selected
+                            </button>
+                         </div>
                     </div>
-                </div>
-            </div>
+                    
+                     <!-- Actions Section (Below List) -->
+                     <div class="library-section actions-section centered-actions">
+                         <div class="action-buttons-container">
+                            <button class="btn btn-danger" onclick="resetSession()">
+                                <i class="fas fa-power-off"></i> Reset Full Session (Delete Library)
+                            </button>
+                        </div>
+                    </div>
+                </div> <!-- End library-content-area -->
+            </div> <!-- End library-view -->
 
-            <!-- Reset Button at the Bottom -->
-            <button class="btn btn-reset" onclick="clearChatUI()">
-                <i class="fas fa-broom"></i> Clear Chat
-            </button>
-            <button class="btn btn-delete" onclick="deleteFiles()">
-                <i class="fas fa-trash-alt"></i> Delete Files
-            </button>
-            <button class="btn btn-danger" onclick="resetSession()">
-                <i class="fas fa-power-off"></i> Reset Session
-            </button>
-        </aside>
-
-        <!-- Main Chat Area -->
-        <main class="chat-area">
-            <!-- Centered Title -->
-            <div class="chat-header">
-                <h1>Hey<span class="accent-text">Bro</span><span class="accent-mark">.</span><span class="accent-mark">!</span></h1>
-                <p>Your personalized AI Sathi, rooted in everyday usefulness</p>
-            </div>
-
-            <!-- Chat Messages Container -->
-            <div class="chat-container" id="chatContainer">
-                <!-- Initial Bot Message -->
-                <div class="message bot-message">HeyBro, Upload files and ask me anything about them.</div>
-                <!-- Messages will be added here by JavaScript -->
-            </div>
-
-            <!-- Input Section at the Bottom -->
-            <div class="input-section">
-                <input type="text" class="chat-input" id="userInput" placeholder="ask something...">
-                <button class="btn btn-send" onclick="sendMessage()">
-                    <i class="fas fa-paper-plane"></i>
-                </button>
-            </div>
-        </main>
-    </div>
+        </div> <!-- End main-content-area -->
+    </div> <!-- End app-container -->
 
     <script>
-        const fileInput = document.getElementById('fileInput');
-        const fileInfo = document.getElementById('file-info'); // Get the info element
-        const sidebar = document.getElementById('sidebar'); // Get sidebar element
-        const hamburgerMenu = document.getElementById('hamburgerMenu'); // Get hamburger menu button
-
-        // Toggle sidebar visibility on hamburger click
-        if (hamburgerMenu && sidebar) {
-            hamburgerMenu.addEventListener('click', () => {
-                sidebar.classList.toggle('open'); // Add/remove 'open' class
-            });
-        }
-
-        // Optional: Close sidebar when clicking outside of it on mobile
-        document.addEventListener('click', (event) => {
-            if (sidebar && sidebar.classList.contains('open') && !sidebar.contains(event.target) && !hamburgerMenu.contains(event.target)) {
-                sidebar.classList.remove('open');
+        // Move element selections and event listeners inside DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', () => {
+            // Get references to main view elements
+            const chatArea = document.getElementById('chat-area');
+            const libraryView = document.getElementById('library-view');
+            const showLibraryBtn = document.getElementById('show-library-btn');
+            const backToChatBtn = document.getElementById('back-to-chat-btn');
+            const fileInput = document.getElementById('fileInput'); 
+            const fileInfo = document.getElementById('file-info'); 
+            const userInput = document.getElementById('userInput'); 
+            // Select the original send button (now acting as clear) by its temporary ID
+            const sendButtonActsAsClear = document.getElementById('send-button'); 
+            console.log('DOMContentLoaded: Found sendButtonActsAsClear:', sendButtonActsAsClear);
+            
+            // Remove Tab Elements selection
+            // const tabButtons = document.querySelectorAll('.tab-nav .tab-button');
+            // const tabPanes = document.querySelectorAll('.tab-content .tab-pane');
+            
+            // Remove Tab Switching Logic 
+            /*
+            function switchTab(event) {
+                // ... (removed function body)
             }
-        });
+            */
 
-        // Update file info display when files are selected
-        if (fileInput && fileInfo) {
-            fileInput.addEventListener('change', () => {
-                if (fileInput.files.length > 0) {
-                    const fileNames = Array.from(fileInput.files).map(f => f.name).join(', ');
-                    fileInfo.textContent = `${fileInput.files.length} file(s): ${fileNames}`;
-                } else {
-                    fileInfo.textContent = 'No files selected';
+            // Remove event listeners for tabs
+            /* 
+            tabButtons.forEach(button => {
+                button.addEventListener('click', switchTab);
+            });
+            */
+            // --- End Removal of Tab Logic ---
+            
+            // --- View Switching Logic --- 
+            function showLibrary() {
+                if (chatArea) chatArea.classList.add('hidden');
+                if (libraryView) libraryView.classList.remove('hidden');
+                 fetchDocuments(); // Refresh documents when showing library
+            }
+    
+            function showChat() {
+                if (libraryView) libraryView.classList.add('hidden');
+                if (chatArea) chatArea.classList.remove('hidden');
+            }
+    
+            // Add event listeners for view switching
+            if (showLibraryBtn) {
+                // Modified listener to toggle views
+                showLibraryBtn.addEventListener('click', () => {
+                    if (libraryView && libraryView.classList.contains('hidden')) {
+                        showLibrary(); // Show library if it's hidden
+                    } else {
+                        showChat(); // Show chat if library is visible
+                    }
+                });
+            }
+            if (backToChatBtn) {
+                backToChatBtn.addEventListener('click', showChat);
+            }
+            
+            // --- Restore Original Send Button Listener ---
+            const sendButton = document.getElementById('send-button'); // Get correct ID
+            console.log('DOMContentLoaded: Found sendButton:', sendButton); // Log again
+
+            // Remove listener attachment for the temporary clear button ID if it exists
+            /*
+            const sendButtonActsAsClear = document.getElementById('send-button-temp-clear'); // ID no longer exists
+            if (sendButtonActsAsClear) {
+                // sendButtonActsAsClear.removeEventListener('click', clearChatUI); // Clean up just in case
+            }
+            */
+
+            // Add event listener for Send Button (programmatically)
+            if (sendButton) {
+                console.log('Attaching click listener to sendButton');
+                sendButton.addEventListener('click', sendMessage);
+            } else {
+                console.error('Could not attach listener: sendButton not found!');
+            }
+             // Remove the temporary listener attachment for clearChatUI
+            /*
+            if (sendButtonActsAsClear) {
+                console.log('Attaching click listener (clearChatUI) to original send button'); 
+                sendButtonActsAsClear.addEventListener('click', clearChatUI);
+            }
+            */
+            // --- End Restore Original Send Button Listener ---
+            
+            // Set initial view
+            showChat(); // Start with chat view visible
+            fetchDocuments(); // Initial document load for the library
+
+             // Update file info display (now inside DOMContentLoaded)
+            if (fileInput && fileInfo) { 
+                 fileInput.addEventListener('change', () => {
+                    if (fileInput.files.length > 0) {
+                        const fileNames = Array.from(fileInput.files).map(f => f.name).join(', ');
+                        fileInfo.textContent = `${fileInput.files.length} file(s): ${fileNames}`;
+                    } else {
+                        fileInfo.textContent = 'No files selected';
+                    }
+                });
+            }
+            
+            // Send message on Enter key press (now inside DOMContentLoaded)
+            if (userInput) {
+                 userInput.addEventListener('keypress', function(e) {
+                    console.log('Keypress event fired:', e.key); // Log the key pressed
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        console.log('Enter key detected, calling sendMessage...'); // Log detection
+                        e.preventDefault();
+                        sendMessage();
+                    }
+                });
+            }
+
+            // Add event listeners to checkboxes for managing bulk delete button
+            // Ensure this runs after elements are available
+            document.addEventListener('change', function(event) {
+                if (event.target.matches('#document-list .document-checkbox')) {
+                    manageBulkDeleteButton();
                 }
             });
-        }
-
+            
+            // Call initial management of button visibility
+            manageBulkDeleteButton();
+            toggleLibraryListDisplay(); // Set initial state of list display
+            
+        }); // End DOMContentLoaded
+        // --- End View Switching Logic ---
+        
+        // --- Globally Defined Functions (Keep these outside DOMContentLoaded if they don't rely on elements directly on load) ---
+        
         function addMessage(message, isUser) {
-            const chatContainer = document.getElementById('chatContainer');
-            if (!chatContainer) return; // Ensure container exists
-
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
-
-            // Basic Markdown support (bold, italics) - Optional enhancement
-            message = message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); // Bold
-            message = message.replace(/\*(.*?)\*/g, '<em>$1</em>');       // Italics
-            message = message.replace(/\n/g, '<br>'); // Convert newlines
-
-            messageDiv.innerHTML = message; // Use innerHTML to render bold/italics/br
-            chatContainer.appendChild(messageDiv);
-            // Scroll to the bottom smoothly
-            chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+             // ... (keep existing logic) ...
         }
 
+        // --- Restore Original sendMessage Logic ---
         async function sendMessage() {
+            console.log('sendMessage function called');
             const userInput = document.getElementById('userInput');
-            if (!userInput) return; // Ensure input exists
+            const chatContainer = document.getElementById('chatContainer');
+            console.log('sendMessage: userInput:', userInput, 'chatContainer:', chatContainer);
+
+            if (!userInput || !chatContainer) {
+                console.error('Required elements not found for sendMessage.');
+                return;
+            }
 
             const message = userInput.value.trim();
 
@@ -157,17 +291,8 @@
                 userInput.value = ''; // Clear input after sending
 
                 try {
-                    // Show typing indicator (optional)
-                    // addMessage("...", false); // Placeholder for typing indicator
-
                     const response = await fetch(`/search?query=${encodeURIComponent(message)}`);
-
-                    // Remove typing indicator if used
-                    // const typingIndicator = chatContainer.querySelector('.typing-indicator');
-                    // if (typingIndicator) chatContainer.removeChild(typingIndicator);
-
                     if (!response.ok) {
-                        // Handle HTTP errors (like 404, 500)
                         const errorText = await response.text();
                         addMessage(`Server Error: ${response.status} ${response.statusText}. ${errorText}`, false);
                     } else {
@@ -177,17 +302,19 @@
                 } catch (error) {
                     console.error("Fetch error:", error);
                     addMessage(`Network Error: Could not connect to the server. (${error.message})`, false);
-                     // Remove typing indicator on error too
-                    // const typingIndicator = chatContainer.querySelector('.typing-indicator');
-                    // if (typingIndicator) chatContainer.removeChild(typingIndicator);
                 }
             }
         }
+        // --- End Restore Original sendMessage Logic ---
 
         async function uploadFiles() {
-            // The actual files are already selected via the hidden input
+            console.log('uploadFiles function called'); 
+            const fileInput = document.getElementById('fileInput'); 
+            const fileInfo = document.getElementById('file-info'); 
+            console.log('uploadFiles: fileInput:', fileInput, 'fileInfo:', fileInfo);
+            
             if (!fileInput || fileInput.files.length === 0) {
-                alert('Please select at least one file using the "Upload File(s)" button first.');
+                alert('Please select at least one file using the "Upload Documents" button first.');
                 return;
             }
 
@@ -196,221 +323,333 @@
                 formData.append('files', file);
             }
             
-            // Show upload status container
+            // Get status elements
             const uploadStatus = document.getElementById('upload-status');
             const uploadProgressBar = document.getElementById('upload-progress-bar');
             const uploadStatusText = document.getElementById('upload-status-text');
             const uploadTimeEstimate = document.getElementById('upload-time-estimate');
+            const confirmButton = document.querySelector('.btn-trigger-upload'); // Get button to disable/enable
+            console.log('uploadFiles: status elements:', { uploadStatus, uploadProgressBar, uploadStatusText, uploadTimeEstimate });
             
+            if (!uploadStatus || !uploadProgressBar || !uploadStatusText || !uploadTimeEstimate) {
+                 console.error('Upload status/progress elements not found!');
+                 alert('UI error: Could not display upload progress.');
+                 return;
+             }
+            
+            // --- Start: Restored Logic --- 
             if (uploadStatus) uploadStatus.classList.remove('hidden');
-            if (uploadProgressBar) uploadProgressBar.style.width = '5%'; // Initial progress
+            if (uploadProgressBar) {
+                 uploadProgressBar.style.width = '5%'; 
+                 uploadProgressBar.style.backgroundColor = 'var(--accent-color)'; // Reset color
+            }
             if (uploadStatusText) uploadStatusText.textContent = 'Starting upload...';
             
-            // Calculate estimated time based on file size
+            // Calculate estimated time 
             const totalSizeMB = Array.from(fileInput.files).reduce((acc, file) => acc + file.size, 0) / (1024 * 1024);
-            const estimatedTimeSeconds = Math.max(5, Math.ceil(totalSizeMB * 1.5)); // Rough estimate: 1.5 sec per MB, minimum 5 seconds
-            if (uploadTimeEstimate) uploadTimeEstimate.textContent = `Estimated time: ${estimatedTimeSeconds} seconds`;
+            const estimatedTimeSeconds = Math.max(5, Math.ceil(totalSizeMB * 1.5)); 
+            if (uploadTimeEstimate) uploadTimeEstimate.textContent = `Estimated time: ~${estimatedTimeSeconds} seconds`;
             
-            // Set up progress simulation (since we don't have real upload progress)
+            // Set up progress simulation 
             let progress = 5;
             const progressInterval = setInterval(() => {
                 if (progress < 90) {
-                    progress += Math.random() * 5; // Random increment for natural feel
-                    if (uploadProgressBar) uploadProgressBar.style.width = `${progress}%`;
+                    progress += Math.random() * 5; 
+                    if (uploadProgressBar) uploadProgressBar.style.width = `${Math.min(progress, 95)}%`; // Cap at 95% before fetch finishes
                     
-                    // Update status text based on progress
                     if (uploadStatusText) {
                         if (progress < 30) uploadStatusText.textContent = 'Uploading files...';
                         else if (progress < 60) uploadStatusText.textContent = 'Processing content...';
-                        else uploadStatusText.textContent = 'Creating embeddings...';
+                        else uploadStatusText.textContent = 'Analyzing & Indexing...'; // Changed text slightly
                     }
                 }
             }, 500);
             
             // Disable upload button
-            const confirmButton = document.querySelector('.btn-trigger-upload');
             if(confirmButton) confirmButton.disabled = true;
 
             try {
-                const response = await fetch('/upload', {
+                const response = await fetch('/upload', { // Correct endpoint
                     method: 'POST',
                     body: formData
                 });
 
-                // Clear interval and set to 100% when complete
+                // Clear interval and set to 100% when fetch is done
                 clearInterval(progressInterval);
                 if (uploadProgressBar) uploadProgressBar.style.width = '100%';
                 
+                const data = await response.json(); // Read JSON data first
+
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Processing failed: ${response.status} ${response.statusText}. ${errorText}`);
+                     // Use error message from JSON if available
+                    throw new Error(data.error || `Processing failed: ${response.status}`); 
                 }
 
-                const data = await response.json();
-                
                 // Update upload status with success
-                if (uploadStatusText) uploadStatusText.textContent = 'Files processed successfully!';
-                if (uploadTimeEstimate) uploadTimeEstimate.textContent = `${data.document_count} documents | ${data.chunk_count} chunks created`;
+                if (uploadStatusText) uploadStatusText.textContent = 'Files added successfully!';
+                if (uploadTimeEstimate) uploadTimeEstimate.textContent = `${data.document_count} document(s) added.`; // Simplified message
                 
-                // Update document library with new documents
-                if (data.documents && data.documents.length > 0) {
-                    updateDocumentLibrary(data.documents);
+                // Log before updating list
+                console.log('Upload successful. Response data:', data);
+                console.log('Calling updateDocumentList with:', data.documents);
+
+                // Update document library
+                if (data.documents) { // Check if documents array exists in response
+                    updateDocumentList(data.documents);
+                } else {
+                    console.warn('No documents array found in successful upload response:', data);
+                    fetchDocuments(); // Fallback to fetching all documents again
                 }
                 
                 // Reset file inputs
-                fileInfo.textContent = 'No files selected';
-                fileInput.value = '';
+                if(fileInfo) fileInfo.textContent = 'No files selected';
+                if(fileInput) fileInput.value = '';
+
+                 // Hide status after delay on success
+                 setTimeout(() => {
+                    if (uploadStatus) uploadStatus.classList.add('hidden');
+                    if (uploadProgressBar) uploadProgressBar.style.width = '0%';
+                 }, 3000); 
 
             } catch (error) {
-                console.error("Processing error:", error);
+                clearInterval(progressInterval); // Stop progress on error too
+                console.error("Upload error:", error);
                 
                 // Update upload status with error
                 if (uploadStatusText) uploadStatusText.textContent = `Error: ${error.message}`;
-                if (uploadTimeEstimate) uploadTimeEstimate.textContent = '';
+                if (uploadTimeEstimate) uploadTimeEstimate.textContent = ''; // Clear estimate
                 if (uploadProgressBar) {
-                    uploadProgressBar.style.width = '100%';
+                    uploadProgressBar.style.width = '100%'; // Show full bar as red
                     uploadProgressBar.style.backgroundColor = 'var(--error-color)';
                 }
+                 // Optionally add error to chat? 
+                 // addMessage(`Error uploading files: ${error.message}`, false);
+                 
+                 // Hide status after longer delay on error
+                 setTimeout(() => {
+                    if (uploadStatus) uploadStatus.classList.add('hidden');
+                    if (uploadProgressBar) uploadProgressBar.style.width = '0%';
+                 }, 5000); 
                 
             } finally {
+                // Re-enable upload button regardless of success/error
                 if(confirmButton) confirmButton.disabled = false;
-                
-                // Hide upload status after some time on success
-                setTimeout(() => {
-                    if (uploadProgressBar && uploadProgressBar.style.backgroundColor !== 'var(--error-color)') {
-                        uploadStatus.classList.add('hidden');
-                        // Reset progress bar
-                        uploadProgressBar.style.width = '0%';
-                    }
-                }, 5000);
             }
+            // --- End: Restored Logic --- 
         }
-        
-        // Function to update the document library
-        function updateDocumentLibrary(documents) {
-            const documentList = document.getElementById('document-list');
-            const documentLibrary = document.getElementById('document-library');
-            if (!documentList || !documentLibrary) return;
 
-            // Clear existing list
-            documentList.innerHTML = '';
+        // Function to update the document list UI (keep existing logic)
+        function updateDocumentList(documents) {
+             console.log('updateDocumentList function called with documents:', documents); // Log entry and data
+             
+             const docList = document.getElementById('document-list');
+             const loadingDiv = docList ? docList.querySelector('.document-loading') : null; // Find loading div relative to docList
+             const libraryToggle = document.getElementById('library-toggle');
+             const notificationBadge = libraryToggle ? libraryToggle.querySelector('.notification-badge') : null;
+             console.log('updateDocumentList: Found elements:', { docList, loadingDiv, notificationBadge }); // Log found elements
 
-            // Add new documents
-            documents.forEach(doc => {
-                const li = document.createElement('li');
-                li.setAttribute('data-document-id', doc.document_id);
-                li.className = 'document-item';
-                
-                const docIcon = document.createElement('i');
-                docIcon.className = 'fas fa-file-pdf document-icon';
-                
-                const contentDiv = document.createElement('div');
-                contentDiv.className = 'document-content';
-                
-                const label = document.createElement('label');
-                label.className = 'document-title';
-                label.textContent = doc.title || doc.filename;
-                
-                const details = document.createElement('small');
-                details.className = 'document-details';
-                details.innerHTML = `<i class="fas fa-file-alt"></i> ${doc.page_count} pages`;
-                
-                contentDiv.appendChild(label);
-                contentDiv.appendChild(details);
-                
-                li.appendChild(docIcon);
-                li.appendChild(contentDiv);
-                documentList.appendChild(li);
-            });
+             if (!docList) {
+                 console.error('Could not find #document-list element to update.');
+                 return; // Exit if list container not found
+             }
 
-            // Show/hide the library based on whether there are documents
-            if (documents.length > 0) {
-                documentLibrary.classList.add('active');
-            } else {
-                documentLibrary.classList.remove('active');
+             // Clear current list (excluding loading state initially)
+             docList.innerHTML = ''; 
+
+             if (documents && Array.isArray(documents) && documents.length > 0) {
+                 console.log(`updateDocumentList: Processing ${documents.length} documents.`);
+                 documents.forEach((doc, index) => {
+                    console.log(`updateDocumentList: Creating element for doc ${index}:`, doc); // Log each doc being processed
+                    const item = document.createElement('div');
+                    const textSpan = document.createElement('span');
+                    textSpan.textContent = doc.title || doc.filename || doc.source_url || 'Unnamed Document'; 
+                    textSpan.className = 'document-text';
+                    item.appendChild(textSpan);
+                    
+                    docList.appendChild(item);
+                 });
+                 console.log('updateDocumentList: Finished adding document elements.');
+                 // Update badge count
+                 if (notificationBadge) {
+                     notificationBadge.textContent = documents.length.toString();
+                     notificationBadge.style.display = 'inline-block';
+                 }
+             } else {
+                 console.log('updateDocumentList: No documents array or empty array received.');
+                 docList.innerHTML = '<div class="document-loading">No documents in library. Add some!</div>'; // Updated empty message
+                 if (notificationBadge) {
+                     notificationBadge.textContent = '0';
+                     notificationBadge.style.display = 'none';
+                 }
+             }
+        }
+
+        async function addWebsite() { 
+            console.log('addWebsite function called'); // Debug log
+            // Accessing urlInput etc. needs them passed or defined globally/higher scope
+            const urlInput = document.getElementById('urlInput'); // Re-get or pass
+            console.log('addWebsite: urlInput:', urlInput); // Debug log
+            if (!urlInput) {
+                console.error('URL input element not found!');
+                alert('UI error: Could not find URL input field.');
+                return;
             }
-        }
-        
-        // Direct toggle library function
-        function toggleLibrary() {
-            const documentLibrary = document.getElementById('document-library');
-            const libraryToggle = document.getElementById('library-toggle');
+            const url = urlInput.value.trim();
+
+            if (!url) {
+                alert('Please enter a valid website URL.');
+                return;
+            }
             
-            if (documentLibrary) {
-                documentLibrary.classList.toggle('expanded');
-                
-                // Toggle the chevron icon
-                const chevron = libraryToggle.querySelector('.library-toggle-icon');
-                if (chevron) {
-                    chevron.classList.toggle('fa-chevron-down');
-                    chevron.classList.toggle('fa-chevron-up');
+             // Validate URL format (basic)
+            try {
+                new URL(url);
+            } catch (_) {
+                alert('Invalid URL format. Please include http:// or https://');
+                return;
+            }
+
+            // Show status indicator
+            const statusContainer = document.getElementById('add-website-status');
+            const progressBar = document.getElementById('add-website-progress-bar');
+            const statusText = document.getElementById('add-website-status-text');
+            const addButton = document.querySelector('.btn-crawl'); // Using class selector ok?
+            console.log('addWebsite: status elements:', { statusContainer, progressBar, statusText }); // Debug log
+            
+            if (!statusContainer || !progressBar || !statusText) {
+                console.error('Add Website status/progress elements not found!');
+                alert('UI error: Could not display progress for adding website.');
+                return;
+            }
+
+            if (statusContainer) statusContainer.classList.remove('hidden');
+            if (progressBar) {
+                progressBar.style.width = '10%'; 
+                progressBar.style.backgroundColor = 'var(--accent-color)'; // Reset color
+            }
+            if (statusText) statusText.textContent = 'Initiating request...'; // Initial status
+            if (addButton) addButton.disabled = true; 
+
+            // Simulate progress (Mimicking upload stages)
+            let progress = 10;
+            const progressInterval = setInterval(() => {
+                if (progress < 90) {
+                    progress += Math.random() * 10; // Adjust increment rate if needed
+                    if (progressBar) progressBar.style.width = `${Math.min(progress, 95)}%`; // Cap progress
+                    
+                    // Update status text based on simulated progress
+                    if (statusText) {
+                        if (progress < 40) statusText.textContent = 'Fetching website content...';
+                        else if (progress < 75) statusText.textContent = 'Analyzing content...'; 
+                        else statusText.textContent = 'Saving to library...'; 
+                    }
                 }
+            }, 700); // Adjust interval timing if desired
+
+            try {
+                const response = await fetch('/crawl', { // Corrected endpoint URL
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url: url })
+                });
+
+                if (!response.ok) { throw new Error(`Add Website failed: ${response.status}`); }
+                
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || `Adding page failed: ${response.status}`);
+                }
+
+                if (statusText) statusText.textContent = 'Website added successfully!'; // Updated success text
+                updateDocumentList(data.documents); 
+                if (urlInput) urlInput.value = ''; 
+
+                // Hide status after a short delay
+                setTimeout(() => {
+                    if (statusContainer) statusContainer.classList.add('hidden');
+                    if (progressBar) progressBar.style.width = '0%'; 
+                }, 3000); // Short delay on success
+
+            } catch (error) {
+                clearInterval(progressInterval);
+                console.error("Add Website error:", error);
+                if (statusText) statusText.textContent = `Error: ${error.message}`; 
+                if (progressBar) { // Indicate error on progress bar
+                    progressBar.style.width = '100%'; 
+                    progressBar.style.backgroundColor = 'var(--error-color)';
+                }
+                 
+                 setTimeout(() => {
+                    if (statusContainer) statusContainer.classList.add('hidden');
+                    if (progressBar) progressBar.style.width = '0%'; 
+                 }, 5000); // Longer delay on error
+                 addMessage(`Failed to add ${url}. Error: ${error.message}`, false);
+
+            } finally {
+                 if (addButton) addButton.disabled = false; 
             }
         }
-        
-        // Function to load existing documents on page load
-        async function loadExistingDocuments() {
-            try {
+
+        // Function to fetch and display documents on page load/update
+        async function fetchDocuments() {
+             try {
                 const response = await fetch('/documents');
                 if (response.ok) {
                     const data = await response.json();
-                    if (data.documents && data.documents.length > 0) {
-                        updateDocumentLibrary(data.documents);
-                    } else {
-                        // Show the library anyway with empty state
-                        const documentLibrary = document.getElementById('document-library');
-                        if (documentLibrary) documentLibrary.classList.add('active');
-                    }
+                    updateDocumentList(data.documents); // Update list in the library view
                 } else {
                     console.error("Failed to load documents, status:", response.status);
+                    updateDocumentList([]); // Clear list on error
                 }
             } catch (error) {
                 console.error("Error loading documents:", error);
+                updateDocumentList([]); // Clear list on error
             }
-            
-            // Setup toggle functionality
-            toggleLibrary();
         }
         
-        // Load documents when page loads
-        document.addEventListener('DOMContentLoaded', () => {
-            loadExistingDocuments();
-            adjustChatAreaHeight();
-        });
-        
-        // Also try loading when window is fully loaded
-        window.addEventListener('load', () => {
-            toggleLibrary();
-            adjustChatAreaHeight();
-        });
-
-        // Adjust height on window resize (e.g., orientation change)
-        window.addEventListener('resize', adjustChatAreaHeight);
-
-        async function clearChatUI() {
-            const chatContainer = document.getElementById('chatContainer');
-            if (!chatContainer) return;
-            
-            // Clear chat visually immediately without server call
-            chatContainer.innerHTML = '<div class="message bot-message">Chat cleared. Your documents are still available.</div>';
-        }
-
-        async function deleteFiles() {
-            const documentLibrary = document.getElementById('document-library');
+        // Toggle for the document list *within* the library view
+        function toggleLibraryListDisplay() {
             const documentList = document.getElementById('document-list');
-            if (!documentLibrary || !documentList) return;
+            const toggleIcon = document.querySelector('#library-toggle .library-toggle-icon');
+            const bulkActions = document.querySelector('#document-library .bulk-actions');
+            if (documentList && toggleIcon) {
+                documentList.classList.toggle('visible');
+                toggleIcon.classList.toggle('fa-chevron-down');
+                toggleIcon.classList.toggle('fa-chevron-up');
+                if (bulkActions) {
+                   bulkActions.style.display = documentList.classList.contains('visible') ? 'block' : 'none';
+                }
+                // Maybe call manageBulkDeleteButton here too
+            }
+        }
+        
+        // Manage bulk delete button visibility based on selections
+        function manageBulkDeleteButton() {
+            const checkboxes = document.querySelectorAll('#document-list .document-checkbox:checked');
+            const deleteButton = document.querySelector('.bulk-actions .btn-delete');
+            if (deleteButton) {
+                deleteButton.style.display = checkboxes.length > 0 ? 'inline-block' : 'none';
+            }
+        }
+        
+        // Modified delete function to handle selected files
+        async function deleteSelectedFiles() {
+            const checkedBoxes = document.querySelectorAll('#document-list .document-checkbox:checked');
+            const documentIds = Array.from(checkedBoxes).map(cb => cb.value);
 
-            if (!confirm('Are you sure you want to delete all files from the current session?')) {
+            if (documentIds.length === 0) {
+                alert('Please select at least one document to delete.');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to delete the selected ${documentIds.length} document(s)?`)) {
                 return;
             }
 
             try {
-                // Get all document IDs from the list items
-                const documentIds = Array.from(documentList.querySelectorAll('li')).map(listItem => 
-                    listItem.getAttribute('data-document-id')
-                ).filter(id => id); // Filter out any undefined/null values
-
-                // Call the delete endpoint
                 const response = await fetch('/delete_documents', {
                     method: 'POST',
                     headers: {
@@ -421,60 +660,50 @@
 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    throw new Error(`Delete failed: ${response.status} ${response.statusText}. ${errorText}`);
+                    throw new Error(`Delete failed: ${response.status}. ${errorText}`);
                 }
 
                 const data = await response.json();
-                
-                // Update the document library with remaining documents
-                if (data.documents) {
-                    updateDocumentLibrary(data.documents);
-                }
-
-                addMessage(data.message || 'Files deleted successfully', false);
+                updateDocumentList(data.documents); // Refresh the list
+                addMessage(data.message || 'Selected documents deleted.', false); // Show message in chat? Or maybe an alert?
+                 alert(data.message || 'Selected documents deleted successfully.'); // Use alert for library view feedback
+                 manageBulkDeleteButton(); // Hide button again
 
             } catch (error) {
                 console.error("Delete error:", error);
-                addMessage(`Error deleting files: ${error.message}`, false);
+                 alert(`Error deleting selected documents: ${error.message}`);
+                // addMessage(`Error deleting selected documents: ${error.message}`, false);
             }
         }
-
-        async function resetSession() {
+        
+        // Keep clearChatUI (unchanged from previous state)
+        async function clearChatUI() {
+            console.log('clearChatUI function called (via Send btn maybe?)'); // Added log
             const chatContainer = document.getElementById('chatContainer');
-            const documentLibrary = document.getElementById('document-library');
             if (!chatContainer) return;
+            chatContainer.innerHTML = '<div class="message bot-message">Chat cleared. Your library remains unchanged.</div>';
+        }
 
-            if (!confirm('This will reset the entire session, including the Pinecone index. Are you sure?')) {
+        // Keep resetSession (affects backend and library)
+        async function resetSession() {
+            if (!confirm('This will reset the entire session, deleting all documents from your library and the index. Are you sure?')) {
                 return;
             }
-
+             addMessage("Resetting session... Please wait.", false); // Show in chat
+            showChat(); // Switch back to chat to show message
             try {
-                // Show resetting message
-                addMessage("Resetting session...", false);
-                
-                // Call the reset_session API endpoint
                 const response = await fetch('/reset_session', { method: 'POST' });
+                if (!response.ok) { throw new Error(`Reset failed: ${response.status}`); }
                 
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Reset failed: ${response.status} ${response.statusText}. ${errorText}`);
-                }
-
                 // Clear chat visually
-                chatContainer.innerHTML = '<div class="message bot-message">Session reset complete. Start fresh by uploading new files.</div>';
+                const chatContainer = document.getElementById('chatContainer');
+                if (chatContainer) chatContainer.innerHTML = '<div class="message bot-message">Session reset complete. Start fresh by adding documents or web pages to your library.</div>';
                 
-                // Reset document library
-                if (documentLibrary) {
-                    documentLibrary.classList.remove('active');
-                    const documentList = document.getElementById('document-list');
-                    if (documentList) documentList.innerHTML = '';
-                }
+                // Reset document list UI
+                updateDocumentList([]);
                 
-                // Reset file info and file input
-                const fileInfo = document.getElementById('file-info');
+                // Reset file input UI elements
                 if (fileInfo) fileInfo.textContent = 'No files selected';
-                
-                const fileInput = document.getElementById('fileInput');
                 if (fileInput) fileInput.value = '';
                 
             } catch (error) {
@@ -483,46 +712,6 @@
             }
         }
 
-        // Send message on Enter key press
-        const userInput = document.getElementById('userInput');
-        if(userInput) {
-            userInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter' && !e.shiftKey) { // Allow shift+enter for newline later if needed
-                    e.preventDefault(); // Prevent default form submission/newline
-                    sendMessage();
-                }
-            });
-        }
-
-        // --- Function to dynamically adjust chat container height --- NEW
-        function adjustChatAreaHeight() {
-            const chatArea = document.querySelector(".chat-area");
-            const chatHeader = document.querySelector(".chat-header");
-            const chatContainer = document.getElementById('chatContainer');
-            const inputSection = document.querySelector(".input-section");
-
-            if (chatArea && chatHeader && chatContainer && inputSection) {
-                // Check if we are likely on a mobile device (screen width <= 768px)
-                if (window.innerWidth <= 768) {
-                    const windowHeight = window.innerHeight;
-                    const headerHeight = chatHeader.offsetHeight;
-                    const inputHeight = inputSection.offsetHeight;
-                    
-                    // Calculate available height for the chat messages
-                    // Add a small buffer (e.g., 5px) just in case
-                    const containerHeight = windowHeight - headerHeight - inputHeight - 5;
-                    
-                    // Apply the calculated height
-                    chatContainer.style.height = `${containerHeight}px`;
-                    chatContainer.style.maxHeight = `${containerHeight}px`; // Ensure it doesn't exceed
-                } else {
-                    // On desktop, reset height to allow CSS flex to manage it
-                    chatContainer.style.height = ''; 
-                    chatContainer.style.maxHeight = '';
-                }
-            }
-        }
-        // --- END NEW FUNCTION --- 
     </script>
 </body>
 </html>

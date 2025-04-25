@@ -18,6 +18,7 @@
     --font-family: 'Roboto', sans-serif;
     --border-radius-main: 10px;  /* Consistent border radius */
     --border-radius-small: 6px;
+    --nav-width: 70px; /* Width for the new nav sidebar */
 }
 
 * {
@@ -36,9 +37,12 @@ html, body {
 
 /* --- Main App Layout --- */
 .app-container {
-    display: flex;
-    height: 100vh; /* Full viewport height */
-    width: 100vw;  /* Full viewport width */
+    height: 100vh;
+    overflow: hidden;
+}
+
+.app-container.new-layout {
+    display: flex; /* Use flex for nav + main content */
 }
 
 /* --- Sidebar --- */
@@ -401,6 +405,8 @@ html, body {
     flex-direction: column; /* Stack header, chat container, input */
     background-color: var(--bg-color-dark);
     overflow: hidden; /* Prevent content spillover */
+    position: relative; /* Give it a position context */
+    z-index: 5; /* Bring chat area forward */
 }
 
 .chat-header {
@@ -442,6 +448,7 @@ html, body {
     display: flex;
     flex-direction: column;
     gap: 12px; /* Space between messages */
+    padding-bottom: 90px; /* Add padding at the bottom = approx height of input section + margin */
 }
 
 /* Individual Message Styling */
@@ -475,31 +482,55 @@ html, body {
 .input-section {
     display: flex;
     align-items: center;
-    padding: 15px 40px 25px 40px; /* Bottom padding more generous */
-    border-top: 1px solid var(--border-color);
-    background-color: var(--bg-color-dark); /* Match chat area background */
     gap: 10px;
-    flex-shrink: 0; /* Prevent input area from shrinking */
+    /* Remove old padding/border if they existed directly here */
+    /* padding: 15px 40px 25px 40px; */
+    /* border-top: 1px solid var(--border-color); */
+    /* background-color: var(--bg-color-dark); */ 
+
+    /* New Styling */
+    padding: 15px 20px; /* Vertical and horizontal padding */
+    margin: 0 auto 20px auto; /* Top, Auto(LR for centering), Bottom, Auto */
+    max-width: 900px; /* Limit maximum width */
+    width: 95%; /* Responsive width */
+    background-color: var(--bg-color-light); /* Give it a distinct background */
+    border-radius: var(--border-radius-main); /* Rounded corners */
+    box-shadow: 0 4px 15px rgba(0,0,0, 0.2); /* Add a subtle shadow */
+    border: 1px solid var(--border-color-light);
+    flex-shrink: 0; /* Prevent shrinking */
+    /* Removed z-index and position relative from previous debug step */
 }
 
+/* Ensure chat input still grows */
 .chat-input {
     flex-grow: 1;
-    padding: 12px 15px;
-    border: 1px solid var(--border-color-light);
-    background-color: var(--bg-color-light);
+    /* Make input background transparent or match parent */
+    background-color: transparent;
+    border: none; /* Remove default border */
     color: var(--text-color-primary);
-    border-radius: var(--border-radius-small);
+    padding-left: 5px; /* Slight padding */
     font-size: 1rem;
-    outline: none;
-    transition: border-color 0.2s ease;
 }
-
 .chat-input:focus {
-    border-color: var(--accent-color);
+    outline: none; /* Remove focus outline */
 }
 
-.chat-input::placeholder {
+/* Adjust button backgrounds inside input section */
+.input-section .btn {
+    background-color: transparent; /* Make buttons blend in */
+    border: none;
     color: var(--text-color-secondary);
+}
+.input-section .btn:hover {
+    color: var(--text-color-primary);
+    background-color: rgba(255, 255, 255, 0.1); /* Subtle hover */
+}
+
+/* Override clear chat button specifics */
+.btn-clear-chat-inline {
+    /* background-color: transparent; Inherited */
+    /* border: 1px solid var(--border-color-light); Removed */
+     border: none;
 }
 
 /* --- General Button Styles --- */
@@ -774,4 +805,339 @@ html, body {
     .sidebar .btn-reset {
         margin-top: auto; /* <<< ADDED Push to bottom on mobile too */
     }
+}
+
+/* New App Navigation Sidebar */
+.app-nav {
+    width: var(--nav-width);
+    background-color: var(--bg-color-medium);
+    padding: 20px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100vh;
+    position: fixed; /* Or relative if within .app-container flex */
+    left: 0;
+    top: 0;
+    z-index: 20; /* Ensure it's above other content */
+    border-right: 1px solid var(--border-color);
+}
+
+.nav-button {
+    background: none;
+    border: none;
+    color: var(--text-color-secondary);
+    padding: 15px 10px;
+    margin-bottom: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    width: 100%;
+}
+
+.nav-button i {
+    font-size: 1.5rem;
+    margin-bottom: 5px;
+}
+
+.nav-button span {
+    font-size: 0.7rem;
+    font-weight: 500;
+}
+
+.nav-button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--accent-color);
+}
+
+/* Main Content Area */
+.main-content-area {
+    flex-grow: 1;
+    margin-left: var(--nav-width); 
+    height: 100vh;
+    display: flex; /* Keep flex */
+    position: relative; /* Ensure this is the stacking context parent */
+    overflow: hidden;
+}
+
+/* Library View Styles */
+.library-view {
+    position: absolute; /* <<< Re-add absolute */
+    top: 0;
+    left: 0;
+    z-index: 1; /* Keep library behind chat area unless .hidden is removed */
+    /* Ensure it does NOT have display:flex when hidden via the .hidden class */
+    width: 100%; /* Fill container */
+    height: 100%; /* Fill container */
+    background-color: var(--bg-color-darkest); /* Match body background */
+    display: flex; /* Use flex for its internal layout */
+    flex-direction: column;
+    overflow-y: auto; /* Allow scrolling ONLY for the library view */
+}
+
+/* Hidden Class */
+.hidden {
+    display: none !important; 
+    /* OR try visibility, sometimes interacts differently with pos:absolute */
+    /* visibility: hidden; */ 
+    /* opacity: 0; */
+    /* z-index: -1; */ /* Push completely behind */
+}
+
+/* Remove padding from main content area if sections/cards handle it */
+.library-content-area { 
+    padding: 30px; /* Adjust overall padding */
+    /* ... keep existing flex/overflow ... */
+}
+
+/* Remove generic section styling if cards replace it */
+.library-section { 
+    /* background-color: var(--bg-color-dark); */
+    /* padding: 25px; */
+    /* border-radius: var(--border-radius-main); */
+    /* margin-bottom: 25px; */
+    /* border: 1px solid var(--border-color); */
+    /* box-shadow: 0 2px 8px rgba(0,0,0,0.3); */
+}
+.library-section:hover {
+    /* box-shadow: 0 4px 12px rgba(0,0,0,0.4); */
+}
+.library-section h3 {
+    /* Keep header styling within specific sections */
+}
+
+/* Remove Tab Styling */
+/* .tab-nav { ... } */
+/* .tab-button { ... } */
+/* .tab-content { ... } */
+/* .tab-pane { ... } */
+/* .tab-description { ... } */
+
+/* New Add Content Container */
+.add-content-container {
+    display: flex;
+    gap: 30px; /* Space between cards */
+    margin-bottom: 30px;
+    flex-wrap: wrap; /* Allow wrapping */
+}
+
+/* New Card Styling */
+.add-card {
+    flex: 1; /* Try to take equal width */
+    min-width: 300px; /* Min width before wrapping */
+    background-color: var(--bg-color-dark); /* Card background */
+    border-radius: var(--border-radius-main);
+    padding: 25px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* Space elements inside card */
+}
+
+.add-card h4 {
+    margin: 0 0 5px 0;
+    color: var(--text-color-primary);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.add-card h4 i {
+    color: var(--accent-color);
+}
+
+.card-description {
+    font-size: 0.9rem;
+    color: var(--text-color-secondary);
+    margin-bottom: 10px;
+}
+
+/* Style elements within cards */
+.add-card .btn.full-width {
+    width: 100%;
+}
+.add-card .centered-text {
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--text-color-secondary);
+}
+
+.add-card .input-group {
+    display: flex;
+}
+.add-card .url-input { 
+    flex-grow: 1;
+    margin-right: -1px; 
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+.add-card .btn-crawl { 
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    flex-shrink: 0;
+    padding-left: 15px; /* Adjust padding */
+    padding-right: 15px;
+}
+.add-card .btn-crawl i {
+    margin: 0; /* Remove gap if only icon */
+}
+
+/* Compact upload status */
+.upload-status.compact {
+    padding: 8px;
+    margin-top: 10px;
+    background-color: var(--bg-color-medium);
+}
+.upload-status.compact .upload-status-text {
+    font-size: 0.8rem;
+}
+
+/* Document List Section Styling */
+.document-list-section {
+    max-width: 800px; /* Limit width */
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 30px;
+    background-color: var(--bg-color-dark); /* Give it card background */
+    padding: 25px;
+    border-radius: var(--border-radius-main);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+}
+.document-list-section .library-header {
+     /* Adjust styling for header within this section */
+     padding-bottom: 15px;
+     margin-bottom: 15px;
+     border-bottom: 1px solid var(--border-color-light);
+}
+.document-list-section .list-header h3 {
+    margin: 0; /* Reset margin */
+    padding: 0; /* Reset padding */
+    border: none; /* Remove border if previously added */
+}
+
+/* Actions Section Styling */
+.actions-section {
+    max-width: 400px; /* Smaller width for actions */
+    margin-left: auto;
+    margin-right: auto;
+    background-color: var(--bg-color-dark); /* Card background */
+    padding: 25px;
+    border-radius: var(--border-radius-main);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+}
+.centered-actions .action-buttons-container {
+    justify-content: center;
+}
+
+/* Remove previous attempt overrides if needed */
+/* #document-library.document-library { ... } */ 
+
+/* Adjustments within Tabs removed as tabs are gone */
+/* .add-option { ... } */
+\n/* ... rest of CSS ... */
+
+/* Add Content Section Layout */
+.add-content-section .add-options-container {
+    display: flex;
+    gap: 25px; /* Space between file and web add */
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+}
+
+.add-option { 
+    flex: 1; /* Each option tries to take equal space */
+    min-width: 280px; /* Minimum width before wrapping */
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* Space elements within the option */
+    padding: 15px;
+    border: 1px solid var(--border-color-light);
+    border-radius: var(--border-radius-small);
+    background-color: var(--bg-color-dark); /* Slightly darker background */
+}
+
+.add-option .sidebar-label { /* Reusing label class */
+    font-weight: 500;
+    color: var(--text-color-secondary);
+}
+
+.add-option .input-group { /* For web add */
+    display: flex;
+}
+.add-option .url-input { 
+    flex-grow: 1;
+    margin-right: -1px; /* Connect input and button */
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+.add-option .btn-crawl { /* Add page button */
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    flex-shrink: 0;
+}
+
+/* Document List Section Styles */
+.document-list-section {
+    /* Keep existing styles, maybe add more padding if needed */
+}
+#document-library .list-header h3 {
+    border-bottom: none; /* Remove double border */
+    margin-bottom: 0;
+    padding-bottom: 0;
+    display: flex; /* Align icon and text */
+    align-items: center;
+}
+
+/* Actions Section Layout */
+.actions-section .action-buttons-container {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+.actions-section .btn { 
+    flex-grow: 1; /* Buttons try to take equal width */
+}
+
+/* Input Section Adjustments */
+.input-section {
+    /* Ensure flex properties are set */
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    /* Other padding etc. */
+}
+
+.btn-clear-chat-inline {
+    padding: 8px 10px; /* Make it smaller */
+    background-color: transparent; /* Subtle background */
+    border: 1px solid var(--border-color-light);
+    color: var(--text-color-secondary);
+    flex-shrink: 0; /* Prevent shrinking */
+}
+
+.btn-clear-chat-inline:hover {
+    background-color: var(--bg-color-light);
+    color: var(--text-color-primary);
+}
+
+.btn-clear-chat-inline i {
+    margin: 0; /* Remove default gap from .btn */
+    font-size: 1rem; /* Adjust icon size */
+}
+
+/* Ensure chat input still grows */
+.chat-input {
+    flex-grow: 1;
+    /* Other existing styles */
+}
+
+/* Existing small-btn class might need adjustments */
+.small-btn {
+    /* padding: 5px 10px; */ /* Adjusted by btn-clear-chat-inline */
+    /* font-size: 0.8rem; */ /* Keep or adjust as needed */
 }
