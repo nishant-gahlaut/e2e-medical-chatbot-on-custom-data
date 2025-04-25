@@ -168,7 +168,7 @@ def create_chunk(documents):
     """Splits documents into smaller chunks with a maximum limit."""
     MAX_CHUNKS = 300
     
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=900, chunk_overlap=50)
     all_chunks = []
     
     for doc in documents:

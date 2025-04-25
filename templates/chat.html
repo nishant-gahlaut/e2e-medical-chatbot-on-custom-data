@@ -269,7 +269,45 @@
         // --- Globally Defined Functions (Keep these outside DOMContentLoaded if they don't rely on elements directly on load) ---
         
         function addMessage(message, isUser) {
-             // ... (keep existing logic) ...
+            console.log('addMessage called. Message:', message, 'isUser:', isUser); // Log entry
+            const chatContainer = document.getElementById('chatContainer');
+            if (!chatContainer) {
+                 console.error('addMessage: chatContainer not found!'); // Log error
+                 return; 
+            }
+            console.log('addMessage: Found chatContainer', chatContainer); // Log container found
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+            console.log('addMessage: Created messageDiv with class:', messageDiv.className); // Log div creation
+
+            // Basic Markdown support (bold, italics) - Optional enhancement
+            let processedMessage = message;
+            try {
+                 // Ensure message is a string before replacing
+                 if (typeof processedMessage !== 'string') {
+                     processedMessage = String(processedMessage); 
+                 }
+                 processedMessage = processedMessage.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); // Bold
+                 processedMessage = processedMessage.replace(/\*(.*?)\*/g, '<em>$1</em>');       // Italics
+                 processedMessage = processedMessage.replace(/\n/g, '<br>'); // Convert newlines
+            } catch (e) {
+                console.error('Error processing message markdown/newlines:', e);
+                // Use original message if processing fails
+                processedMessage = message; 
+            }
+
+            messageDiv.innerHTML = processedMessage; 
+            chatContainer.appendChild(messageDiv);
+            console.log('addMessage: Appended messageDiv to chatContainer'); // Log append
+            
+            // Scroll to the bottom smoothly
+            try {
+                chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+                console.log('addMessage: Scrolled to bottom.'); // Log scroll
+            } catch (e) {
+                 console.error('Error scrolling chat container:', e);
+            }
         }
 
         // --- Restore Original sendMessage Logic ---
@@ -287,7 +325,9 @@
             const message = userInput.value.trim();
 
             if (message) {
+                console.log('User message detected:', message); // Log before adding
                 addMessage(message, true);
+                console.log('Called addMessage for user message.'); // Log after adding
                 userInput.value = ''; // Clear input after sending
 
                 try {
@@ -296,12 +336,27 @@
                         const errorText = await response.text();
                         addMessage(`Server Error: ${response.status} ${response.statusText}. ${errorText}`, false);
                     } else {
-                        const data = await response.json();
-                        addMessage(data.response || 'Received empty response from server.', false);
+                        console.log('Received 200 OK from /search.');
+                        try {
+                            const responseText = await response.text(); 
+                            console.log('Successfully read response body as text:', responseText);
+                            
+                            // --- Re-enable JSON parse and addMessage --- 
+                            const data = JSON.parse(responseText); 
+                            console.log('Successfully parsed JSON data:', data);
+                            const botResponseText = data.response || 'Parsed JSON but key \'response\' missing.';
+                            console.log('Attempting to add bot message:', botResponseText);
+                            addMessage(botResponseText, false);
+                            // --- End Re-enabled Section --- 
+                            
+                        } catch (readOrParseError) { // Catch errors from .text() OR JSON.parse() OR addMessage
+                            console.error('Error reading/parsing/displaying response body:', readOrParseError);
+                            addMessage(`Error: Could not process/display server response. (${readOrParseError.message})`, false);
+                        }
                     }
-                } catch (error) {
-                    console.error("Fetch error:", error);
-                    addMessage(`Network Error: Could not connect to the server. (${error.message})`, false);
+                } catch (fetchError) { 
+                    console.error("Network fetch error:", fetchError); 
+                    addMessage(`Network Error: Could not connect to the server. (${fetchError.message})`, false);
                 }
             }
         }

@@ -181,6 +181,9 @@ def chatbot():
     if not success:
         return jsonify({"error": error_message}), 400 if "required" in error_message else 500
     
+    # Log the response content before sending
+    app.logger.info(f"Search successful. Sending response: {response[:500]}...") # Log first 500 chars
+    
     return jsonify({
         "response": response,
         "user_context": user_id

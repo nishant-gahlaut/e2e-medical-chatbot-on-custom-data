@@ -1141,3 +1141,35 @@ html, body {
     /* padding: 5px 10px; */ /* Adjusted by btn-clear-chat-inline */
     /* font-size: 0.8rem; */ /* Keep or adjust as needed */
 }
+
+/* Library View Styles */
+.library-header-controls {
+    display: flex;
+    justify-content: flex-end; /* <<< Change to push button to the right */
+    align-items: center;
+    padding: 15px 25px; 
+    background-color: var(--bg-color-medium); 
+    border-bottom: 1px solid var(--border-color);
+    min-height: 60px; /* Ensure header has some height */
+}
+
+.back-button {
+    background: none; /* Remove background */
+    border: none;
+    color: var(--text-color-secondary);
+    padding: 8px 12px; /* Adjust padding */
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: var(--border-radius-small);
+    transition: all 0.2s ease;
+}
+
+.back-button:hover {
+    background-color: rgba(255, 255, 255, 0.1); /* Subtle hover */
+    color: var(--accent-color);
+}
+
+.back-button i {
+    margin-right: 6px;
+}
