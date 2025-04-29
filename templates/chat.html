@@ -21,6 +21,10 @@
     <div class="app-container new-layout"> <!-- Add class for new layout -->
         <!-- New App Navigation Sidebar -->
         <nav class="app-nav" id="app-nav">
+            <button class="nav-button" id="show-upload-btn" title="Upload Content">
+                <i class="fas fa-upload"></i>
+                <span>Upload</span>
+            </button>
             <button class="nav-button" id="show-library-btn" title="Show Library">
                 <i class="fas fa-book-open"></i>
                 <span>Library</span>
@@ -52,6 +56,54 @@
                 </div>
             </main>
 
+            <!-- New Upload View (Initially Hidden) -->
+            <div class="library-view upload-view hidden" id="upload-view">
+                <div class="library-header-controls">
+                    <button class="btn btn-secondary back-button" id="back-to-chat-btn-upload">
+                        <i class="fas fa-arrow-left"></i> Back to Chat
+                    </button>
+                </div>
+                
+                <!-- Content area for upload sections -->
+                <div class="library-content-area upload-content-area">
+                     <!-- Top Row: Add Content Cards -->
+                    <div class="add-content-container">
+                        <!-- Upload Card -->
+                        <div class="add-card upload-card">
+                            <h4><i class="fas fa-file-upload"></i> Upload Documents</h4>
+                            <p class="card-description">Select PDF, TXT, etc.</p>
+                            <label for="fileInputUploadView" class="btn btn-primary btn-upload full-width">
+                                <i class="fas fa-cloud-upload-alt"></i> Select File(s)
+                            </label>
+                            <input type="file" id="fileInputUploadView" multiple style="display: none;">
+                            <small id="file-info-upload" class="centered-text">No files selected</small>
+                            <button class="btn btn-secondary btn-trigger-upload full-width" onclick="uploadFiles()">Confirm Upload</button>
+                            <div id="upload-status-upload" class="upload-status compact hidden">
+                                <div class="upload-progress-container">
+                                    <div id="upload-progress-bar-upload" class="upload-progress-bar"></div>
+                                </div>
+                                <div id="upload-status-text-upload" class="upload-status-text">Processing...</div>
+                                <div id="upload-time-estimate-upload" class="upload-time-estimate"></div>
+                            </div>
+                        </div>
+                        <!-- Web Add Card -->
+                        <div class="add-card web-card">
+                             <h4><i class="fas fa-link"></i> Add Web Page</h4>
+                             <p class="card-description">Paste a single page URL.</p>
+                            <input type="url" id="urlInputUpload" class="form-control url-input full-width url-input-styled" placeholder="https://...">
+                            <button class="btn btn-secondary btn-crawl full-width" onclick="addWebsite()">Confirm Add</button>
+                            <div id="add-website-status-upload" class="upload-status compact hidden">
+                                <div class="upload-progress-container">
+                                    <div id="add-website-progress-bar-upload" class="upload-progress-bar" style="width: 0%"></div>
+                                </div>
+                                <div id="add-website-status-text-upload" class="upload-status-text">Processing...</div>
+                                <div id="add-website-time-estimate-upload" class="upload-time-estimate"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div> <!-- End upload-content-area -->
+            </div> <!-- End upload-view -->
+
             <!-- New Library View (Initially Hidden) -->
             <div class="library-view hidden" id="library-view">
                 <div class="library-header-controls">
@@ -62,45 +114,6 @@
                 
                 <!-- Content area for library sections -->
                 <div class="library-content-area"> 
-
-                    <!-- Top Row: Add Content Cards -->
-                    <div class="add-content-container"> 
-                        <!-- Upload Card -->
-                        <div class="add-card upload-card"> 
-                            <h4><i class="fas fa-file-upload"></i> Upload Documents</h4>
-                            <p class="card-description">Select PDF, TXT, etc.</p>
-                            <label for="fileInput" class="btn btn-primary btn-upload full-width">
-                                <i class="fas fa-cloud-upload-alt"></i> Select File(s)
-                            </label>
-                            <input type="file" id="fileInput" multiple style="display: none;">
-                            <small id="file-info" class="centered-text">No files selected</small> 
-                            <button class="btn btn-secondary btn-trigger-upload full-width" onclick="uploadFiles()">Confirm Upload</button>
-                            <div id="upload-status" class="upload-status compact hidden">
-                                <div class="upload-progress-container">
-                                    <div id="upload-progress-bar" class="upload-progress-bar"></div>
-                                </div>
-                                <div id="upload-status-text" class="upload-status-text">Processing...</div>
-                                <div id="upload-time-estimate" class="upload-time-estimate"></div>
-                            </div>
-                        </div>
-                        <!-- Web Add Card -->
-                        <div class="add-card web-card"> 
-                             <h4><i class="fas fa-link"></i> Add Web Page</h4>
-                             <p class="card-description">Paste a single page URL.</p>
-                            <div class="input-group">
-                                 <input type="url" id="urlInput" class="form-control url-input" placeholder="https://...">
-                                 <button class="btn btn-crawl" onclick="addWebsite()">
-                                     <i class="fas fa-plus-circle"></i> Add
-                                 </button>
-                            </div>
-                            <div id="add-website-status" class="upload-status compact hidden">
-                                <div class="progress-container">
-                                    <div class="progress-bar" id="add-website-progress-bar" style="width: 0%"></div>
-                                </div>
-                                <p id="add-website-status-text">Processing...</p>
-                            </div>
-                        </div>
-                    </div>
 
                     <!-- Bottom Row: Document List -->
                     <div class="library-section document-list-section" id="document-library"> 
@@ -140,10 +153,14 @@
             // Get references to main view elements
             const chatArea = document.getElementById('chat-area');
             const libraryView = document.getElementById('library-view');
+            const uploadView = document.getElementById('upload-view'); // Get upload view
             const showLibraryBtn = document.getElementById('show-library-btn');
+            const showUploadBtn = document.getElementById('show-upload-btn'); // Get upload button
             const backToChatBtn = document.getElementById('back-to-chat-btn');
+            const backToChatBtnUpload = document.getElementById('back-to-chat-btn-upload'); // Get upload back button
             const fileInput = document.getElementById('fileInput'); 
-            const fileInfo = document.getElementById('file-info'); 
+            const fileInputUploadView = document.getElementById('fileInputUploadView'); // Input for upload view
+            const fileInfoUpload = document.getElementById('file-info-upload'); // Info for upload view
             const userInput = document.getElementById('userInput'); 
             // Select the original send button (now acting as clear) by its temporary ID
             const sendButtonActsAsClear = document.getElementById('send-button'); 
@@ -169,30 +186,57 @@
             // --- End Removal of Tab Logic ---
             
             // --- View Switching Logic --- 
-            function showLibrary() {
+            function showView(viewToShow) {
+                // Hide all main views first
                 if (chatArea) chatArea.classList.add('hidden');
-                if (libraryView) libraryView.classList.remove('hidden');
-                 fetchDocuments(); // Refresh documents when showing library
+                if (libraryView) libraryView.classList.add('hidden');
+                if (uploadView) uploadView.classList.add('hidden');
+
+                // Show the selected view
+                if (viewToShow) viewToShow.classList.remove('hidden');
+            }
+    
+            function showLibrary() {
+                showView(libraryView);
+                fetchDocuments(); // Refresh documents when showing library
             }
     
             function showChat() {
-                if (libraryView) libraryView.classList.add('hidden');
-                if (chatArea) chatArea.classList.remove('hidden');
+                showView(chatArea);
             }
     
+            function showUpload() {
+                showView(uploadView);
+                // Potentially clear upload status here if needed
+            }
+
             // Add event listeners for view switching
             if (showLibraryBtn) {
-                // Modified listener to toggle views
+                // Toggle Library/Chat view
                 showLibraryBtn.addEventListener('click', () => {
                     if (libraryView && libraryView.classList.contains('hidden')) {
-                        showLibrary(); // Show library if it's hidden
+                        showLibrary();
                     } else {
-                        showChat(); // Show chat if library is visible
+                        showChat();
+                    }
+                });
+            }
+            if (showUploadBtn) {
+                showUploadBtn.addEventListener('click', () => {
+                    // Toggle Upload/Chat view
+                    const uploadView = document.getElementById('upload-view');
+                    if (uploadView && uploadView.classList.contains('hidden')) {
+                        showUpload();
+                    } else {
+                        showChat();
                     }
                 });
             }
             if (backToChatBtn) {
                 backToChatBtn.addEventListener('click', showChat);
+            }
+            if (backToChatBtnUpload) {
+                backToChatBtnUpload.addEventListener('click', showChat);
             }
             
             // --- Restore Original Send Button Listener ---
@@ -227,14 +271,14 @@
             showChat(); // Start with chat view visible
             fetchDocuments(); // Initial document load for the library
 
-             // Update file info display (now inside DOMContentLoaded)
-            if (fileInput && fileInfo) { 
-                 fileInput.addEventListener('change', () => {
-                    if (fileInput.files.length > 0) {
-                        const fileNames = Array.from(fileInput.files).map(f => f.name).join(', ');
-                        fileInfo.textContent = `${fileInput.files.length} file(s): ${fileNames}`;
+             // Update file info display for UPLOAD view
+            if (fileInputUploadView && fileInfoUpload) {
+                fileInputUploadView.addEventListener('change', () => {
+                    if (fileInputUploadView.files.length > 0) {
+                        const fileNames = Array.from(fileInputUploadView.files).map(f => f.name).join(', ');
+                        fileInfoUpload.textContent = `${fileInputUploadView.files.length} file(s): ${fileNames}`;
                     } else {
-                        fileInfo.textContent = 'No files selected';
+                        fileInfoUpload.textContent = 'No files selected';
                     }
                 });
             }
@@ -363,9 +407,9 @@
         // --- End Restore Original sendMessage Logic ---
 
         async function uploadFiles() {
-            console.log('uploadFiles function called'); 
-            const fileInput = document.getElementById('fileInput'); 
-            const fileInfo = document.getElementById('file-info'); 
+            console.log('uploadFiles function called for Upload View');
+            const fileInput = document.getElementById('fileInputUploadView');
+            const fileInfo = document.getElementById('file-info-upload');
             console.log('uploadFiles: fileInput:', fileInput, 'fileInfo:', fileInfo);
             
             if (!fileInput || fileInput.files.length === 0) {
@@ -378,13 +422,13 @@
                 formData.append('files', file);
             }
             
-            // Get status elements
-            const uploadStatus = document.getElementById('upload-status');
-            const uploadProgressBar = document.getElementById('upload-progress-bar');
-            const uploadStatusText = document.getElementById('upload-status-text');
-            const uploadTimeEstimate = document.getElementById('upload-time-estimate');
-            const confirmButton = document.querySelector('.btn-trigger-upload'); // Get button to disable/enable
-            console.log('uploadFiles: status elements:', { uploadStatus, uploadProgressBar, uploadStatusText, uploadTimeEstimate });
+            // Get status elements for Upload View
+            const uploadStatus = document.getElementById('upload-status-upload');
+            const uploadProgressBar = document.getElementById('upload-progress-bar-upload');
+            const uploadStatusText = document.getElementById('upload-status-text-upload');
+            const uploadTimeEstimate = document.getElementById('upload-time-estimate-upload');
+            const confirmButton = document.querySelector('#upload-view .btn-trigger-upload'); // Target button in upload view
+            console.log('uploadFiles: status elements:', { uploadStatus, uploadProgressBar, uploadStatusText, uploadTimeEstimate, confirmButton });
             
             if (!uploadStatus || !uploadProgressBar || !uploadStatusText || !uploadTimeEstimate) {
                  console.error('Upload status/progress elements not found!');
@@ -401,9 +445,8 @@
             if (uploadStatusText) uploadStatusText.textContent = 'Starting upload...';
             
             // Calculate estimated time 
-            const totalSizeMB = Array.from(fileInput.files).reduce((acc, file) => acc + file.size, 0) / (1024 * 1024);
-            const estimatedTimeSeconds = Math.max(5, Math.ceil(totalSizeMB * 1.5)); 
-            if (uploadTimeEstimate) uploadTimeEstimate.textContent = `Estimated time: ~${estimatedTimeSeconds} seconds`;
+            const estimatedTimeSeconds = 3; // Start with 3 seconds estimate
+            if (uploadTimeEstimate) uploadTimeEstimate.textContent = `Estimated time remaining: ~${estimatedTimeSeconds} seconds`;
             
             // Set up progress simulation 
             let progress = 5;
@@ -415,7 +458,16 @@
                     if (uploadStatusText) {
                         if (progress < 30) uploadStatusText.textContent = 'Uploading files...';
                         else if (progress < 60) uploadStatusText.textContent = 'Processing content...';
-                        else uploadStatusText.textContent = 'Analyzing & Indexing...'; // Changed text slightly
+                        else uploadStatusText.textContent = 'Analyzing & Indexing...';
+                    }
+                    
+                    // Update remaining time estimate text based on progress
+                    if (uploadTimeEstimate) {
+                        if (progress > 66) {
+                            uploadTimeEstimate.textContent = 'Estimated time remaining: ~1 second';
+                        } else if (progress > 33) {
+                            uploadTimeEstimate.textContent = 'Estimated time remaining: ~2 seconds';
+                        }
                     }
                 }
             }, 500);
@@ -441,8 +493,8 @@
                 }
 
                 // Update upload status with success
-                if (uploadStatusText) uploadStatusText.textContent = 'Files added successfully!';
-                if (uploadTimeEstimate) uploadTimeEstimate.textContent = `${data.document_count} document(s) added.`; // Simplified message
+                if (uploadStatusText) uploadStatusText.textContent = `Success: ${data.document_count} document(s) added.`;
+                if (uploadTimeEstimate) uploadTimeEstimate.textContent = ''; // Clear time estimate on success
                 
                 // Log before updating list
                 console.log('Upload successful. Response data:', data);
@@ -542,7 +594,7 @@
         async function addWebsite() { 
             console.log('addWebsite function called'); // Debug log
             // Accessing urlInput etc. needs them passed or defined globally/higher scope
-            const urlInput = document.getElementById('urlInput'); // Re-get or pass
+            const urlInput = document.getElementById('urlInputUpload'); // Target input in upload view
             console.log('addWebsite: urlInput:', urlInput); // Debug log
             if (!urlInput) {
                 console.error('URL input element not found!');
@@ -564,12 +616,13 @@
                 return;
             }
 
-            // Show status indicator
-            const statusContainer = document.getElementById('add-website-status');
-            const progressBar = document.getElementById('add-website-progress-bar');
-            const statusText = document.getElementById('add-website-status-text');
-            const addButton = document.querySelector('.btn-crawl'); // Using class selector ok?
-            console.log('addWebsite: status elements:', { statusContainer, progressBar, statusText }); // Debug log
+            // Show status indicator for Upload View
+            const statusContainer = document.getElementById('add-website-status-upload');
+            const progressBar = document.getElementById('add-website-progress-bar-upload');
+            const statusText = document.getElementById('add-website-status-text-upload');
+            const addButton = document.querySelector('#upload-view .btn-crawl'); // Target button in upload view
+            const timeEstimateText = document.getElementById('add-website-time-estimate-upload'); // Get time estimate element
+            console.log('addWebsite: status elements:', { statusContainer, progressBar, statusText, addButton, timeEstimateText });
             
             if (!statusContainer || !progressBar || !statusText) {
                 console.error('Add Website status/progress elements not found!');
@@ -585,6 +638,9 @@
             if (statusText) statusText.textContent = 'Initiating request...'; // Initial status
             if (addButton) addButton.disabled = true; 
 
+            // Display estimated time
+            if (timeEstimateText) timeEstimateText.textContent = 'Estimated time remaining: ~3 seconds';
+
             // Simulate progress (Mimicking upload stages)
             let progress = 10;
             const progressInterval = setInterval(() => {
@@ -597,6 +653,15 @@
                         if (progress < 40) statusText.textContent = 'Fetching website content...';
                         else if (progress < 75) statusText.textContent = 'Analyzing content...'; 
                         else statusText.textContent = 'Saving to library...'; 
+                    }
+                    
+                    // Update remaining time estimate text based on progress
+                    if (timeEstimateText) {
+                        if (progress > 66) {
+                            timeEstimateText.textContent = 'Estimated time remaining: ~1 second';
+                        } else if (progress > 33) {
+                            timeEstimateText.textContent = 'Estimated time remaining: ~2 seconds';
+                        }
                     }
                 }
             }, 700); // Adjust interval timing if desired
@@ -618,14 +683,16 @@
                     throw new Error(data.error || `Adding page failed: ${response.status}`);
                 }
 
-                if (statusText) statusText.textContent = 'Website added successfully!'; // Updated success text
+                if (statusText) statusText.textContent = 'Website added successfully!';
+                if (timeEstimateText) timeEstimateText.textContent = ''; // Clear estimate on success
                 updateDocumentList(data.documents); 
                 if (urlInput) urlInput.value = ''; 
 
                 // Hide status after a short delay
                 setTimeout(() => {
                     if (statusContainer) statusContainer.classList.add('hidden');
-                    if (progressBar) progressBar.style.width = '0%'; 
+                    if (progressBar) progressBar.style.width = '0%';
+                    if (timeEstimateText) timeEstimateText.textContent = ''; // Ensure it's cleared
                 }, 3000); // Short delay on success
 
             } catch (error) {
@@ -636,10 +703,12 @@
                     progressBar.style.width = '100%'; 
                     progressBar.style.backgroundColor = 'var(--error-color)';
                 }
+                if (timeEstimateText) timeEstimateText.textContent = ''; // Clear estimate on error
                  
                  setTimeout(() => {
                     if (statusContainer) statusContainer.classList.add('hidden');
-                    if (progressBar) progressBar.style.width = '0%'; 
+                    if (progressBar) progressBar.style.width = '0%';
+                    if (timeEstimateText) timeEstimateText.textContent = ''; // Ensure it's cleared
                  }, 5000); // Longer delay on error
                  addMessage(`Failed to add ${url}. Error: ${error.message}`, false);
 

@@ -1173,3 +1173,16 @@ html, body {
 .back-button i {
     margin-right: 6px;
 }
+
+/* Style for the specific URL input to make it thinner */
+.url-input-styled {
+    padding-top: 8px;    /* Reduce vertical padding */
+    padding-bottom: 8px; /* Reduce vertical padding */
+    /* height: 38px; */ /* Alternatively set a fixed height if padding doesn't work as expected */
+    /* font-size: 0.95rem; */ /* Optional: slightly smaller font */
+    margin-bottom: 10px; /* Ensure spacing consistency */
+}
+
+.url-input-styled::placeholder {
+    color: var(--placeholder-color);
+}
