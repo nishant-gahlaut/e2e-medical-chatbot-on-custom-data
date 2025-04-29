@@ -21,6 +21,10 @@
     <div class="app-container new-layout"> <!-- Add class for new layout -->
         <!-- New App Navigation Sidebar -->
         <nav class="app-nav" id="app-nav">
+            <button class="nav-button" id="show-chat-btn" title="Show Chat">
+                <i class="fas fa-comments"></i>
+                <span>Chat</span>
+            </button>
             <button class="nav-button" id="show-upload-btn" title="Upload Content">
                 <i class="fas fa-upload"></i>
                 <span>Upload</span>
@@ -155,6 +159,7 @@
             const libraryView = document.getElementById('library-view');
             const uploadView = document.getElementById('upload-view'); // Get upload view
             const showLibraryBtn = document.getElementById('show-library-btn');
+            const showChatBtn = document.getElementById('show-chat-btn'); // Get chat button
             const showUploadBtn = document.getElementById('show-upload-btn'); // Get upload button
             const backToChatBtn = document.getElementById('back-to-chat-btn');
             const backToChatBtnUpload = document.getElementById('back-to-chat-btn-upload'); // Get upload back button
@@ -212,24 +217,22 @@
 
             // Add event listeners for view switching
             if (showLibraryBtn) {
-                // Toggle Library/Chat view
+                // Toggle Library/Chat view -> Change back to always show Library
                 showLibraryBtn.addEventListener('click', () => {
-                    if (libraryView && libraryView.classList.contains('hidden')) {
-                        showLibrary();
-                    } else {
-                        showChat();
-                    }
+                    showLibrary();
                 });
             }
             if (showUploadBtn) {
-                showUploadBtn.addEventListener('click', () => {
-                    // Toggle Upload/Chat view
-                    const uploadView = document.getElementById('upload-view');
-                    if (uploadView && uploadView.classList.contains('hidden')) {
-                        showUpload();
-                    } else {
+                // Add event listener for the new Chat button
+                if (showChatBtn) {
+                    showChatBtn.addEventListener('click', () => {
                         showChat();
-                    }
+                    });
+                }
+                
+                // Event listener for Upload button -> Change back to always show Upload
+                showUploadBtn.addEventListener('click', () => {
+                    showUpload();
                 });
             }
             if (backToChatBtn) {
