@@ -192,25 +192,49 @@
             
             // --- View Switching Logic --- 
             function showView(viewToShow) {
+                console.log(`[showView] Called. Attempting to show: ${viewToShow ? viewToShow.id : 'null'}`);
                 // Hide all main views first
-                if (chatArea) chatArea.classList.add('hidden');
-                if (libraryView) libraryView.classList.add('hidden');
-                if (uploadView) uploadView.classList.add('hidden');
+                try {
+                     if (chatArea) {
+                        console.log('[showView] Hiding chatArea');
+                        chatArea.classList.add('hidden');
+                    } else { console.log('[showView] chatArea not found'); }
+                     if (libraryView) {
+                        console.log('[showView] Hiding libraryView');
+                        libraryView.classList.add('hidden');
+                    } else { console.log('[showView] libraryView not found'); }
+                     if (uploadView) {
+                        console.log('[showView] Hiding uploadView');
+                        uploadView.classList.add('hidden');
+                    } else { console.log('[showView] uploadView not found'); }
 
-                // Show the selected view
-                if (viewToShow) viewToShow.classList.remove('hidden');
+                     // Show the selected view
+                     if (viewToShow) {
+                        console.log(`[showView] Showing ${viewToShow.id}`);
+                        viewToShow.classList.remove('hidden');
+                        console.log(`[showView] Successfully showed ${viewToShow.id}`);
+                    } else {
+                        console.log('[showView] No view to show was provided.');
+                     }
+                } catch (e) {
+                    console.error('[showView] Error during hide/show:', e);
+                }
+                console.log('[showView] Finished.');
             }
     
             function showLibrary() {
+                console.log('[showLibrary] Called');
                 showView(libraryView);
                 fetchDocuments(); // Refresh documents when showing library
             }
     
             function showChat() {
+                console.log('[showChat] Called');
                 showView(chatArea);
             }
     
             function showUpload() {
+                console.log('[showUpload] Called');
                 showView(uploadView);
                 // Potentially clear upload status here if needed
             }
@@ -813,29 +837,45 @@
 
         // Keep resetSession (affects backend and library)
         async function resetSession() {
+            console.log('[resetSession] Function entered.');
             if (!confirm('This will reset the entire session, deleting all documents from your library and the index. Are you sure?')) {
                 return;
             }
-             addMessage("Resetting session... Please wait.", false); // Show in chat
-            showChat(); // Switch back to chat to show message
+            console.log('[resetSession] Confirmed. Attempting POST request to /reset_session...');
+
             try {
                 const response = await fetch('/reset_session', { method: 'POST' });
-                if (!response.ok) { throw new Error(`Reset failed: ${response.status}`); }
-                
-                // Clear chat visually
-                const chatContainer = document.getElementById('chatContainer');
-                if (chatContainer) chatContainer.innerHTML = '<div class="message bot-message">Session reset complete. Start fresh by adding documents or web pages to your library.</div>';
-                
-                // Reset document list UI
-                updateDocumentList([]);
-                
-                // Reset file input UI elements
-                if (fileInfo) fileInfo.textContent = 'No files selected';
-                if (fileInput) fileInput.value = '';
-                
-            } catch (error) {
-                console.error("Reset error:", error);
-                addMessage(`Error resetting session: ${error.message}`, false);
+
+                if (!response.ok) {
+                    // Try to get more specific error info if possible
+                    let errorMsg = `Server responded with status ${response.status}`;
+                    try {
+                        const errorData = await response.json(); // Check if backend sends JSON error
+                        errorMsg += `: ${errorData.error || response.statusText}`;
+                    } catch (e) {
+                        // If response wasn't JSON, just use status text
+                        errorMsg += `: ${response.statusText}`;
+                    }
+                    console.error(`[resetSession] Backend error: ${errorMsg}`);
+                    addMessage(`Error resetting session: ${errorMsg}`, false);
+                    alert(`Error resetting session: ${errorMsg}`); // Also show alert
+                    return; // Stop if backend failed
+                }
+
+                // If response.ok is true
+                const data = await response.json(); // Assume success response is JSON
+                console.log('[resetSession] Backend call successful. Response:', data);
+                addMessage(data.message || "Session reset complete. Library cleared.", false);
+                fetchDocuments(); // Refresh the library view (which will show it's empty)
+                // Optional: Switch back to chat view if desired
+                // showChat(); 
+                alert(data.message || "Session reset successfully!"); // Confirmation alert
+
+            } catch (networkError) {
+                // Handle network errors (e.g., server down, DNS issues)
+                console.error("[resetSession] Network or fetch error:", networkError);
+                addMessage(`Network Error: Could not reach server to reset session. (${networkError.message})`, false);
+                alert(`Network Error: Could not reach server to reset session. Please check if the server is running. (${networkError.message})`);
             }
         }
 
